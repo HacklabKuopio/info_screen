@@ -1,0 +1,12 @@
+{
+  "name": "electron-signage",
+  "version": "1.0.0",
+  "description": "Digital signage player for infoscreens",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^35.0.0"
+  }
+}

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+    .buffer {
+      position: fixed; top: 0; left: 0;
+      overflow: hidden; opacity: 0; visibility: hidden;
+      transition: opacity 1s ease-in-out; z-index: 1; background: #000;
+    }
+    .buffer.active { opacity: 1; visibility: visible; z-index: 2; }
+    .buffer.no-fade { opacity: 1; transition: none; }
+    .buffer.no-fade:not(.active) { visibility: hidden; z-index: 1; }
+    .buffer.no-fade.active  { visibility: visible; z-index: 2; }
+
+    webview { display: inline-flex; border: none; }
+    img.media, video.media { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+    #debug { display: none; }
+
+    /* RSS feed */
+    .rss-feed {
+      width: 100%; height: 100%;
+      background: #0d0d0d; color: #e0e0e0;
+      font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+      display: flex; flex-direction: column;
+      padding: 56px 72px; overflow: hidden;
+    }
+    .rss-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-bottom: 1px solid #2a2a2a; padding-bottom: 20px; margin-bottom: 32px;
+    }
+    .rss-feed-title { font-size: 1.7rem; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+    .rss-clock { font-size: 1.5rem; color: #555; font-variant-numeric: tabular-nums; }
+    .rss-items { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .rss-item { padding: 20px 0; border-bottom: 1px solid #1c1c1c; }
+    .rss-item:last-child { border-bottom: none; }
+    .rss-item-title { font-size: 1.4rem; font-weight: 600; color: #f0f0f0; line-height: 1.3; margin-bottom: 6px; }
+    .rss-item-desc { font-size: 1rem; color: #666; line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .rss-item-date { font-size: 0.82rem; color: #404040; margin-top: 6px; }
+
+    /* Arrow-key nav indicator */
+    #nav-indicator {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,.14); color: #fff;
+      font: 600 13px/1 -apple-system, sans-serif;
+      padding: 8px 20px; border-radius: 20px;
+      z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none;
+    }
+    #nav-indicator.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="buf-a" class="buffer active"></div>
+  <div id="buf-b" class="buffer"></div>
+  <div id="debug"></div>
+  <div id="nav-indicator"></div>
+
+  <script>
+    // ── sizing ─────────────────────────────────────────────────────────────
+    function viewport() { return { w: window.innerWidth, h: window.innerHeight }; }
+
+    function sizeBuffer(div) {
+      const { w, h } = viewport();
+      div.style.width = w + 'px'; div.style.height = h + 'px';
+    }
+
+    function sizeWebview(wv) {
+      const { w, h } = viewport();
+      wv.style.width = w + 'px'; wv.style.height = h + 'px';
+      wv.style.minWidth = w + 'px'; wv.style.minHeight = h + 'px';
+    }
+
+    function sizeAll() {
+      document.querySelectorAll('.buffer').forEach(sizeBuffer);
+      document.querySelectorAll('webview').forEach(sizeWebview);
+    }
+    window.addEventListener('resize', sizeAll);
+    sizeAll();
+
+    // ── navigation state ───────────────────────────────────────────────────
+    const nav = { idx: 0, items: [], skip: null, jumpTo: null };
+    const navEl = document.getElementById('nav-indicator');
+    let navHideTimer = null;
+
+    function showNavIndicator() {
+      navEl.textContent = `${nav.idx + 1} / ${nav.items.length}`;
+      navEl.classList.add('visible');
+      clearTimeout(navHideTimer);
+      navHideTimer = setTimeout(() => navEl.classList.remove('visible'), 2000);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' && nav.skip) {
+        nav.skip();
+      }
+      if (e.key === 'ArrowLeft' && nav.items.length > 0) {
+        // go back two steps because the loop will add one
+        nav.jumpTo = (nav.idx - 1 + nav.items.length) % nav.items.length;
+        if (nav.skip) nav.skip();
+      }
+    });
+
+    function sleepOrSkip(ms) {
+      return new Promise(r => {
+        const t = setTimeout(() => { nav.skip = null; r(); }, ms);
+        nav.skip = () => { clearTimeout(t); nav.skip = null; r(); };
+      });
+    }
+
+    // ── config ─────────────────────────────────────────────────────────────
+    function loadConfig() {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        return JSON.parse(fs.readFileSync(path.join(__dirname, 'playlist.json'), 'utf8'));
+      } catch (_) {
+        return { interval: 10000, items: [] };
+      }
+    }
+
+    function normalizeItem(item) {
+      if (typeof item === 'string') return { src: item, duration: null };
+      return { src: item.src || item.url || item.file, duration: item.duration || null };
+    }
+
+    // ── YouTube via yt-dlp ─────────────────────────────────────────────────
+    function isYouTubeUrl(src) {
+      try { const h = new URL(src).hostname.toLowerCase(); return h === 'youtu.be' || h.endsWith('youtube.com'); }
+      catch (_) { return false; }
+    }
+
+    // Returns a direct streamable URL via yt-dlp, or null if unavailable.
+    function getYtDlpUrl(src) {
+      return new Promise(resolve => {
+        const { exec } = require('child_process');
+        exec(`yt-dlp -f "best[height<=1080][ext=mp4]/best[height<=1080]/best" --get-url "${src}"`,
+          { timeout: 25000 },
+          (err, stdout) => resolve(err ? null : (stdout.trim().split('\n')[0] || null))
+        );
+      });
+    }
+
+    function loadVideoDirectly(div, src, waitForEnd) {
+      return new Promise((resolve, reject) => {
+        const vid = document.createElement('video');
+        vid.className = 'media'; vid.playsInline = true;
+        vid.oncanplay = () => { div.appendChild(vid); resolve({ el: vid, waitForEnd }); };
+        vid.onerror   = () => reject(new Error(`Video error: ${src}`));
+        vid.src = src; vid.load();
+      });
+    }
+
+    // Injected into every URL webview — clicks "essential only" or "accept all" cookie banners.
+    const COOKIE_CONSENT_JS = `
+      (function () {
+        function tryDismiss() {
+          const els = [...document.querySelectorAll('button, [role="button"]')];
+          const essential = els.find(e => /vain välttämättömät|reject all|only (necessary|essential)|decline all|ablehnen|weiger/i.test(e.textContent));
+          const accept    = els.find(e => /hyväksy kaikki|accept all|alle akzeptieren|tout accepter|agree to all/i.test(e.textContent));
+          const btn = essential || accept;
+          if (btn) { btn.click(); return true; }
+          return false;
+        }
+        if (!tryDismiss()) {
+          setTimeout(tryDismiss, 1500);
+          setTimeout(tryDismiss, 4000);
+        }
+      })();
+    `;
+
+    const YT_HIDE_CSS = `
+      ytd-masthead, #masthead-container { display: none !important; }
+      tp-yt-app-drawer, ytd-mini-guide-renderer { display: none !important; }
+      #secondary, ytd-watch-next-secondary-results-renderer { display: none !important; }
+      #chat-container { display: none !important; }
+      body { overflow: hidden !important; }
+    `;
+
+    // ── media type ─────────────────────────────────────────────────────────
+    function mediaType(src) {
+      if (/^https?:\/\//i.test(src)) {
+        try {
+          const u = new URL(src);
+          if (isYouTubeUrl(src)) return 'youtube';
+          if (
+            /\.(rss|atom)(\?|$)/i.test(u.pathname) ||
+            u.pathname.startsWith('/rss') ||
+            u.hostname.startsWith('feeds.') ||
+            u.hostname.includes('rss')
+          ) return 'rss';
+        } catch (_) {}
+        return 'url';
+      }
+      if (/\.(jpe?g|png|gif|webp|svg|bmp)$/i.test(src)) return 'image';
+      if (/\.(mp4|webm|ogg|mov|avi)$/i.test(src)) return 'video';
+      return 'url';
+    }
+
+    // ── RSS renderer ────────────────────────────────────────────────────────
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmtDate(s) {
+      try { return new Date(s).toLocaleString('fi-FI', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); }
+      catch (_) { return s; }
+    }
+
+    function nodeFetch(url) {
+      return new Promise((resolve, reject) => {
+        const mod = require(url.startsWith('https') ? 'https' : 'http');
+        const req = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/rss+xml,application/xml,text/xml' } }, res => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            resolve(nodeFetch(res.headers.location));
+            return;
+          }
+          let data = '';
+          res.setEncoding('utf8');
+          res.on('data', c => data += c);
+          res.on('end', () => resolve(data));
+        });
+        req.on('error', reject);
+      });
+    }
+
+    async function loadRssIntoBuffer(div, item) {
+      const text = await nodeFetch(item.src);
+      const xml = new DOMParser().parseFromString(text, 'application/xml');
+
+      const feedTitle = xml.querySelector('channel > title')?.textContent?.trim() || 'News';
+      const entries = [...xml.querySelectorAll('item')].slice(0, 8).map(el => {
+        const raw = el.querySelector('description')?.textContent || '';
+        const tmp = document.createElement('div');
+        tmp.innerHTML = raw;
+        const desc = tmp.textContent.trim();
+        return {
+          title: el.querySelector('title')?.textContent?.trim() || '',
+          desc: desc.length > 220 ? desc.slice(0, 220) + '…' : desc,
+          date: fmtDate(el.querySelector('pubDate')?.textContent || ''),
+        };
+      });
+
+      const now = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+      const el = document.createElement('div');
+      el.className = 'rss-feed';
+      el.innerHTML = `
+        <div class="rss-header">
+          <span class="rss-feed-title">${esc(feedTitle)}</span>
+          <span class="rss-clock">${esc(now)}</span>
+        </div>
+        <div class="rss-items">
+          ${entries.map(i => `
+            <div class="rss-item">
+              <div class="rss-item-title">${esc(i.title)}</div>
+              ${i.desc ? `<div class="rss-item-desc">${esc(i.desc)}</div>` : ''}
+              ${i.date ? `<div class="rss-item-date">${esc(i.date)}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>`;
+      div.appendChild(el);
+      return { el, waitForEnd: false };
+    }
+
+    // ── buffer loading ──────────────────────────────────────────────────────
+    function makeWebview(src) {
+      const wv = document.createElement('webview');
+      wv.setAttribute('partition', 'persist:signage');
+      wv.setAttribute('allowfullscreen', 'true');
+      wv.setAttribute('allowpopups', 'false');
+      sizeWebview(wv);
+      return wv;
+    }
+
+    function webviewPromise(div, wv, src) {
+      div.classList.add('no-fade');
+      div.appendChild(wv);
+      return new Promise(resolve => {
+        wv.addEventListener('dom-ready',       () => sizeWebview(wv), { once: true });
+        wv.addEventListener('did-finish-load', () => {
+          sizeWebview(wv);
+          wv.executeJavaScript(COOKIE_CONSENT_JS).catch(() => {});
+          resolve({ el: wv, waitForEnd: false });
+        }, { once: true });
+        wv.src = src;
+      });
+    }
+
+    async function loadIntoBuffer(div, item) {
+      div.innerHTML = '';
+      div.classList.remove('no-fade');
+      sizeBuffer(div);
+      const type = mediaType(item.src);
+
+      if (type === 'rss') {
+        return loadRssIntoBuffer(div, item);
+      }
+
+      if (type === 'youtube') {
+        const directUrl = await getYtDlpUrl(item.src);
+        if (directUrl) {
+          console.log('[signage] yt-dlp resolved:', directUrl.slice(0, 80));
+          return loadVideoDirectly(div, directUrl, !item.duration);
+        }
+        // yt-dlp not installed or failed — fall back to watch page in webview
+        console.warn('[signage] yt-dlp unavailable, falling back to webview');
+        const u = new URL(item.src);
+        u.searchParams.set('autoplay', '1');
+        const wv = makeWebview(u.toString());
+        wv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+        return webviewPromise(div, wv, u.toString());
+      }
+
+      if (type === 'url') {
+        return webviewPromise(div, makeWebview(item.src), item.src);
+      }
+
+      if (type === 'image') {
+        return new Promise((resolve, reject) => {
+          const img = document.createElement('img');
+          img.className = 'media';
+          img.onload  = () => { div.appendChild(img); resolve({ el: img, waitForEnd: false }); };
+          img.onerror = () => reject(new Error(`Failed to load image: ${item.src}`));
+          img.src = item.src;
+        });
+      }
+
+      if (type === 'video') {
+        return new Promise((resolve, reject) => {
+          const vid = document.createElement('video');
+          vid.className = 'media'; vid.muted = true; vid.playsInline = true;
+          vid.oncanplay = () => { div.appendChild(vid); resolve({ el: vid, waitForEnd: !item.duration }); };
+          vid.onerror   = () => reject(new Error(`Failed to load video: ${item.src}`));
+          vid.src = item.src; vid.load();
+        });
+      }
+    }
+
+    function swap(from, to) { to.classList.add('active'); from.classList.remove('active'); }
+    function waitForVideoEnd(vid) { return new Promise(r => { vid.onended = r; }); }
+
+    // ── main loop ───────────────────────────────────────────────────────────
+    async function run() {
+      let config = loadConfig();
+      nav.items = config.items.map(normalizeItem);
+
+      if (nav.items.length === 0) {
+        document.body.innerHTML = '<p style="color:#555;font-family:sans-serif;margin:40px;font-size:1.2rem">No playlist — run <code>npm start</code> to launch in Electron.</p>';
+        return;
+      }
+
+      const divA = document.getElementById('buf-a');
+      const divB = document.getElementById('buf-b');
+      let activeDiv = divA, inactiveDiv = divB;
+
+      // First item
+      try {
+        nav.idx = 0;
+        const { el, waitForEnd } = await loadIntoBuffer(activeDiv, nav.items[0]);
+        activeDiv.classList.add('active');
+        if (waitForEnd) { el.play(); await waitForVideoEnd(el); }
+        else { el.play && el.play(); await sleepOrSkip(nav.items[0].duration || config.interval || 10000); }
+      } catch (e) {
+        console.error(e);
+        await sleepOrSkip(3000);
+      }
+
+      while (true) {
+        try { config = loadConfig(); nav.items = config.items.map(normalizeItem); } catch (_) {}
+
+        if (nav.jumpTo !== null) {
+          nav.idx = nav.jumpTo;
+          nav.jumpTo = null;
+        } else {
+          nav.idx = (nav.idx + 1) % nav.items.length;
+        }
+        showNavIndicator();
+
+        const item = nav.items[nav.idx];
+        try {
+          const { el, waitForEnd } = await loadIntoBuffer(inactiveDiv, item);
+          swap(activeDiv, inactiveDiv);
+          [activeDiv, inactiveDiv] = [inactiveDiv, activeDiv];
+          if (waitForEnd) { el.play(); await waitForVideoEnd(el); }
+          else { el.play && el.play(); await sleepOrSkip(item.duration || config.interval || 10000); }
+        } catch (e) {
+          console.error('Skipping item due to error:', item.src, e.message);
+          await sleepOrSkip(3000);
+        }
+      }
+    }
+
+    run().catch(console.error);
+  </script>
+</body>
+</html>
