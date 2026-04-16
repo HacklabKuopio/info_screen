@@ -41,6 +41,68 @@
     .rss-item-desc { font-size: 1rem; color: #666; line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .rss-item-date { font-size: 0.82rem; color: #404040; margin-top: 6px; }
 
+    /* Aurora forecast widget */
+    .aurora-widget {
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at 50% 0%, #0e1d45 0%, #050810 65%);
+      color: #b8d0e8; font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+      display: flex; flex-direction: column; padding: 52px 64px; overflow: hidden;
+    }
+    .aurora-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-bottom: 1px solid #131e35; padding-bottom: 18px; margin-bottom: 36px;
+    }
+    .aurora-title { font-size: 1.8rem; font-weight: 700; color: #ddeeff; }
+    .aurora-time  { font-size: 1.4rem; color: #334455; font-variant-numeric: tabular-nums; }
+    .aurora-body  { display: flex; gap: 64px; flex: 1; overflow: hidden; }
+    .aurora-left  { display: flex; flex-direction: column; width: 340px; flex-shrink: 0; }
+    .aurora-kp-num   { font-size: 7rem; font-weight: 800; line-height: 1; letter-spacing: -4px; }
+    .aurora-kp-sub   { font-size: 0.9rem; color: #334455; margin-bottom: 6px; }
+    .aurora-storm    { font-size: 1.3rem; font-weight: 600; margin-bottom: 28px; }
+    .aurora-gauge-track {
+      height: 10px; background: #080f20; border-radius: 5px;
+      overflow: hidden; margin-bottom: 6px; border: 1px solid #131e35;
+    }
+    .aurora-gauge-fill  { height: 100%; border-radius: 5px; }
+    .aurora-gauge-ticks {
+      display: flex; justify-content: space-between;
+      font-size: 0.7rem; color: #2a3a50; margin-bottom: 28px;
+    }
+    .aurora-history-label { font-size: 0.8rem; color: #2a3a50; margin-bottom: 8px; }
+    .aurora-bars { display: flex; height: 72px; align-items: flex-end; gap: 3px; }
+    .aurora-right { flex: 1; }
+    .aurora-vis-title { font-size: 1rem; color: #334455; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .aurora-city {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 11px 0; border-bottom: 1px solid #0c1525; font-size: 1.15rem;
+    }
+    .aurora-city:last-child { border-bottom: none; }
+    .aurora-city-name { color: #5a7090; }
+
+    /* Events widget */
+    .events-widget {
+      width: 100%; height: 100%;
+      background: #0c0f14; color: #b8c8d8;
+      font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+      display: flex; flex-direction: column;
+      padding: 52px 72px; overflow: hidden;
+    }
+    .events-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-bottom: 1px solid #151c25; padding-bottom: 18px; margin-bottom: 32px;
+    }
+    .events-title { font-size: 1.8rem; font-weight: 700; color: #dde8f4; }
+    .events-time  { font-size: 1.4rem; color: #2a3a4a; font-variant-numeric: tabular-nums; }
+    .events-list  { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .ev-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 22px 0; border-bottom: 1px solid #101620;
+    }
+    .ev-row:last-child { border-bottom: none; }
+    .ev-name      { font-size: 1.6rem; font-weight: 600; color: #dde8f4; margin-bottom: 5px; }
+    .ev-countdown { font-size: 1rem; font-weight: 500; }
+    .ev-date      { font-size: 1.1rem; color: #2a3a4a; text-align: right; white-space: nowrap; }
+
     /* Arrow-key nav indicator */
     #nav-indicator {
       position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
@@ -153,6 +215,166 @@
       });
     }
 
+    // ── Events widget ──────────────────────────────────────────────────────
+    async function loadEventsWidget(div) {
+      const el = document.createElement('div');
+      el.className = 'events-widget';
+      div.appendChild(el);
+      try {
+        const fs   = require('fs');
+        const path = require('path');
+        const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'events.json'), 'utf8'));
+
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+
+        const events = (data.events || [])
+          .map(ev => {
+            const start = new Date(ev.date);   start.setHours(0, 0, 0, 0);
+            const end   = ev.endDate ? new Date(ev.endDate) : new Date(ev.date);
+            end.setHours(0, 0, 0, 0);
+            const daysToStart = Math.round((start - today) / 86400000);
+            const daysToEnd   = Math.round((end   - today) / 86400000);
+            return { ...ev, start, end, daysToStart, daysToEnd };
+          })
+          .filter(ev => ev.daysToEnd >= 0)  // hide fully past events
+          .sort((a, b) => a.start - b.start)
+          .slice(0, 7);
+
+        function countdown(ev) {
+          if (ev.daysToStart <= 0 && ev.daysToEnd >= 0) {
+            if (ev.daysToEnd === 0) return { text: 'Tänään – viimeinen päivä', color: '#22c55e' };
+            return { text: `Käynnissä · ${ev.daysToEnd} pv jäljellä`, color: '#22c55e' };
+          }
+          if (ev.daysToStart === 0) return { text: 'Tänään!',   color: '#22c55e' };
+          if (ev.daysToStart === 1) return { text: 'Huomenna',  color: '#84cc16' };
+          if (ev.daysToStart <= 7) return { text: `${ev.daysToStart} päivän päästä`, color: '#eab308' };
+          return { text: `${ev.daysToStart} päivän päästä`, color: '#3a5a7a' };
+        }
+
+        function fmtDate(ev) {
+          const o = { day: 'numeric', month: 'numeric' };
+          if (ev.endDate && ev.start.getTime() !== ev.end.getTime())
+            return `${ev.start.toLocaleDateString('fi-FI', o)}–${ev.end.toLocaleDateString('fi-FI', o)}`;
+          return ev.start.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric', year: 'numeric' });
+        }
+
+        const rows = events.map(ev => {
+          const cd = countdown(ev);
+          return `<div class="ev-row">
+            <div>
+              <div class="ev-name">${esc(ev.name)}</div>
+              <div class="ev-countdown" style="color:${cd.color}">${esc(cd.text)}</div>
+            </div>
+            <div class="ev-date">${esc(fmtDate(ev))}</div>
+          </div>`;
+        }).join('');
+
+        const now = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+        el.innerHTML = `
+          <div class="events-header">
+            <span class="events-title">📅 ${esc(data.title || 'Tapahtumat')}</span>
+            <span class="events-time">${now}</span>
+          </div>
+          <div class="events-list">${rows || '<div style="color:#2a3a4a;padding:24px;font-size:1.2rem">Ei tulevia tapahtumia</div>'}</div>`;
+      } catch (e) {
+        el.innerHTML = `<div style="color:#2a3a4a;padding:48px;font-size:1.1rem">events.json ei saatavilla: ${esc(e.message)}</div>`;
+      }
+      return { el, waitForEnd: false };
+    }
+
+    // ── Aurora forecast widget ─────────────────────────────────────────────
+    function kpColor(kp) {
+      if (kp < 2) return '#22c55e';
+      if (kp < 4) return '#84cc16';
+      if (kp < 5) return '#eab308';
+      if (kp < 6) return '#f97316';
+      if (kp < 7) return '#ef4444';
+      return '#a855f7';
+    }
+
+    function kpStormLevel(kp) {
+      if (kp < 4) return 'Rauhallinen';
+      if (kp < 5) return 'Epärauhallinen';
+      if (kp < 6) return 'G1 – Pieni myrsky';
+      if (kp < 7) return 'G2 – Kohtalainen myrsky';
+      if (kp < 8) return 'G3 – Voimakas myrsky';
+      if (kp < 9) return 'G4 – Ankara myrsky';
+      return 'G5 – Äärimmäinen myrsky';
+    }
+
+    function cityVisibilityHtml(kp) {
+      // minKp for visibility at each latitude (dark, clear skies)
+      const cities = [
+        { name: 'Utsjoki (70°N)',   minKp: 0 },
+        { name: 'Rovaniemi (67°N)', minKp: 3 },
+        { name: 'Oulu (65°N)',      minKp: 5 },
+        { name: 'Kuopio (63°N)',    minKp: 6 },
+        { name: 'Tampere (61°N)',   minKp: 7 },
+        { name: 'Helsinki (60°N)',  minKp: 7.5 },
+      ];
+      return cities.map(c => {
+        const visible = kp >= c.minKp;
+        return `<div class="aurora-city">
+          <span class="aurora-city-name">${esc(c.name)}</span>
+          <span style="color:${visible ? '#22c55e' : '#223040'};font-weight:600">
+            ${visible ? '✓ Mahdollinen' : '✗ Ei näy'}
+          </span>
+        </div>`;
+      }).join('');
+    }
+
+    async function loadAuroraWidget(div) {
+      const el = document.createElement('div');
+      el.className = 'aurora-widget';
+      div.appendChild(el);
+      try {
+        const [rawNow, rawHist] = await Promise.all([
+          nodeFetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
+          nodeFetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'),
+        ]);
+        const nowArr  = JSON.parse(rawNow);
+        const histArr = JSON.parse(rawHist).slice(1); // remove header row
+
+        const kp    = parseFloat(nowArr[nowArr.length - 1][1]);
+        const color = kpColor(kp);
+        const gaugeW = Math.min((kp / 9) * 100, 100).toFixed(1);
+        const now   = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+
+        // Last 16 3-hour blocks = 48h history chart
+        const bars = histArr.slice(-16).map(r => {
+          const v = parseFloat(r[1]);
+          const h = Math.max(4, Math.round((v / 9) * 100));
+          return `<div style="flex:1;height:${h}%;background:${kpColor(v)};border-radius:3px 3px 0 0;align-self:flex-end;opacity:.85"></div>`;
+        }).join('');
+
+        el.innerHTML = `
+          <div class="aurora-header">
+            <span class="aurora-title">🌌 Revontuliennuste</span>
+            <span class="aurora-time">${esc(now)}</span>
+          </div>
+          <div class="aurora-body">
+            <div class="aurora-left">
+              <div class="aurora-kp-num" style="color:${color}">${kp.toFixed(1)}</div>
+              <div class="aurora-kp-sub">Kp-indeksi</div>
+              <div class="aurora-storm" style="color:${color}">${esc(kpStormLevel(kp))}</div>
+              <div class="aurora-gauge-track">
+                <div class="aurora-gauge-fill" style="width:${gaugeW}%;background:${color}"></div>
+              </div>
+              <div class="aurora-gauge-ticks"><span>0</span><span>3</span><span>5</span><span>7</span><span>9</span></div>
+              <div class="aurora-history-label">Viimeinen 48h (3h jaksoissa)</div>
+              <div class="aurora-bars">${bars}</div>
+            </div>
+            <div class="aurora-right">
+              <div class="aurora-vis-title">Näkyvyys tänä yönä</div>
+              ${cityVisibilityHtml(kp)}
+            </div>
+          </div>`;
+      } catch (e) {
+        el.innerHTML = `<div style="color:#334;padding:48px;font-size:1.1rem">Revontulidata ei saatavilla: ${esc(e.message)}</div>`;
+      }
+      return { el, waitForEnd: false };
+    }
+
     // Injected into every URL webview — clicks "essential only" or "accept all" cookie banners.
     const COOKIE_CONSENT_JS = `
       (function () {
@@ -181,6 +403,8 @@
 
     // ── media type ─────────────────────────────────────────────────────────
     function mediaType(src) {
+      if (src.startsWith('aurora:')) return 'aurora';
+      if (src.startsWith('events:')) return 'events';
       if (/^https?:\/\//i.test(src)) {
         try {
           const u = new URL(src);
@@ -293,6 +517,9 @@
       div.classList.remove('no-fade');
       sizeBuffer(div);
       const type = mediaType(item.src);
+
+      if (type === 'aurora')  return loadAuroraWidget(div);
+      if (type === 'events')  return loadEventsWidget(div);
 
       if (type === 'rss') {
         return loadRssIntoBuffer(div, item);

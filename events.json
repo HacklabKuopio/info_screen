@@ -1,0 +1,8 @@
+{
+  "title": "Tapahtumat",
+  "events": [
+    { "date": "2026-05-01", "name": "Vappuhalko" },
+    { "date": "2026-05-06", "name": "Savosec" },
+    { "date": "2026-05-25", "endDate": "2026-05-30", "name": "Halkon kevätnäyttely" }
+  ]
+}

@@ -1,14 +1,17 @@
 {
   "interval": 10000,
   "items": [
-    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201633", "duration": 15000 },
-    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201785", "duration": 15000 },
-    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201417", "duration": 15000 },
-    { "src": "https://news.ycombinator.com", "duration": 20000 },
-    { "src": "https://hnrss.org/frontpage", "duration": 15000 },
-    { "src": "https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET", "duration": 15000 },
-    { "src": "https://yle.fi/rss/uutiset/paauutiset", "duration": 20000 },
-    { "src": "https://yle.fi/rss/uutiset/tuoreimmat", "duration": 20000 },
-    { "src": "https://yle.fi/rss/t/18-141764/fi", "duration": 20000 }
+    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201417", "duration": 10000 },
+    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201418", "duration": 10000 },
+    { "src": "https://news.ycombinator.com", "duration": 10000 },
+    { "src": "https://hnrss.org/frontpage", "duration": 10000 },
+    { "src": "https://yle.fi/rss/uutiset/paauutiset", "duration": 10000 },
+    { "src": "https://www.fingrid.fi/-/custom/sahkojarjestelman-tila-169/", "duration": 10000 },
+    { "src": "https://yle.fi/rss/uutiset/tuoreimmat", "duration": 10000 },
+    { "src": "https://rwc-finland.fmi.fi/index.php/space-weather-in-finland", "duration": 10000 },
+    { "src": "https://yle.fi/rss/t/18-141764/fi", "duration": 10000 },
+    { "src": "events:local", "duration": 10000 },
+    { "src": "https://eumostwanted.eu/fi", "duration": 10000 },
+    { "src": "https://koodaripula.fi/trends#filtered_jobs", "duration": 10000 }
   ]
 }
