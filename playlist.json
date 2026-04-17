@@ -3,7 +3,7 @@
   "items": [
     { "src": "https://pysakit.kuopio.fi/busstop.html?id=201417", "duration": 10000 },
     { "src": "https://pysakit.kuopio.fi/busstop.html?id=201418", "duration": 10000 },
-    { "src": "https://news.ycombinator.com", "duration": 10000 },
+    { "src": "https://news.ycombinator.com", "duration": 10000, "zoom": 4 },
     { "src": "https://hnrss.org/frontpage", "duration": 10000 },
     { "src": "https://yle.fi/rss/uutiset/paauutiset", "duration": 10000 },
     { "src": "https://www.fingrid.fi/-/custom/sahkojarjestelman-tila-169/", "duration": 10000 },
