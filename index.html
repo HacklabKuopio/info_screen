@@ -6,19 +6,23 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 
-    .buffer {
+    /* Pool webviews: all live in the DOM, only one visible at a time */
+    #pool webview {
       position: fixed; top: 0; left: 0;
-      overflow: hidden; opacity: 0; visibility: hidden;
-      transition: opacity 1s ease-in-out; z-index: 1; background: #000;
+      display: inline-flex; border: none;
+      visibility: hidden; z-index: 1;
     }
-    .buffer.active { opacity: 1; visibility: visible; z-index: 2; }
-    .buffer.no-fade { opacity: 1; transition: none; }
-    .buffer.no-fade:not(.active) { visibility: hidden; z-index: 1; }
-    .buffer.no-fade.active  { visibility: visible; z-index: 2; }
+    #pool webview.active { visibility: visible; z-index: 2; }
 
-    webview { display: inline-flex; border: none; }
+    /* Overlay: RSS / aurora / events widgets */
+    #overlay {
+      position: fixed; inset: 0;
+      visibility: hidden; z-index: 2; background: #000;
+      display: flex; flex-direction: column;
+    }
+    #overlay.active { visibility: visible; }
+
     img.media, video.media { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
-    #debug { display: none; }
 
     /* RSS feed */
     .rss-feed {
@@ -59,23 +63,14 @@
     .aurora-kp-num   { font-size: 7rem; font-weight: 800; line-height: 1; letter-spacing: -4px; }
     .aurora-kp-sub   { font-size: 0.9rem; color: #334455; margin-bottom: 6px; }
     .aurora-storm    { font-size: 1.3rem; font-weight: 600; margin-bottom: 28px; }
-    .aurora-gauge-track {
-      height: 10px; background: #080f20; border-radius: 5px;
-      overflow: hidden; margin-bottom: 6px; border: 1px solid #131e35;
-    }
+    .aurora-gauge-track { height: 10px; background: #080f20; border-radius: 5px; overflow: hidden; margin-bottom: 6px; border: 1px solid #131e35; }
     .aurora-gauge-fill  { height: 100%; border-radius: 5px; }
-    .aurora-gauge-ticks {
-      display: flex; justify-content: space-between;
-      font-size: 0.7rem; color: #2a3a50; margin-bottom: 28px;
-    }
+    .aurora-gauge-ticks { display: flex; justify-content: space-between; font-size: 0.7rem; color: #2a3a50; margin-bottom: 28px; }
     .aurora-history-label { font-size: 0.8rem; color: #2a3a50; margin-bottom: 8px; }
     .aurora-bars { display: flex; height: 72px; align-items: flex-end; gap: 3px; }
     .aurora-right { flex: 1; }
     .aurora-vis-title { font-size: 1rem; color: #334455; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.06em; }
-    .aurora-city {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 11px 0; border-bottom: 1px solid #0c1525; font-size: 1.15rem;
-    }
+    .aurora-city { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid #0c1525; font-size: 1.15rem; }
     .aurora-city:last-child { border-bottom: none; }
     .aurora-city-name { color: #5a7090; }
 
@@ -84,8 +79,7 @@
       width: 100%; height: 100%;
       background: #0c0f14; color: #b8c8d8;
       font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
-      display: flex; flex-direction: column;
-      padding: 52px 72px; overflow: hidden;
+      display: flex; flex-direction: column; padding: 52px 72px; overflow: hidden;
     }
     .events-header {
       display: flex; justify-content: space-between; align-items: baseline;
@@ -94,10 +88,7 @@
     .events-title { font-size: 1.8rem; font-weight: 700; color: #dde8f4; }
     .events-time  { font-size: 1.4rem; color: #2a3a4a; font-variant-numeric: tabular-nums; }
     .events-list  { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-    .ev-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 22px 0; border-bottom: 1px solid #101620;
-    }
+    .ev-row { display: flex; justify-content: space-between; align-items: center; padding: 22px 0; border-bottom: 1px solid #101620; }
     .ev-row:last-child { border-bottom: none; }
     .ev-name      { font-size: 1.6rem; font-weight: 600; color: #dde8f4; margin-bottom: 5px; }
     .ev-countdown { font-size: 1rem; font-weight: 500; }
@@ -115,34 +106,26 @@
   </style>
 </head>
 <body>
-  <div id="buf-a" class="buffer active"></div>
-  <div id="buf-b" class="buffer"></div>
-  <div id="debug"></div>
+  <div id="pool"></div>
+  <div id="overlay"></div>
   <div id="nav-indicator"></div>
 
   <script>
     // ── sizing ─────────────────────────────────────────────────────────────
     function viewport() { return { w: window.innerWidth, h: window.innerHeight }; }
 
-    function sizeBuffer(div) {
+    function sizeEl(el) {
       const { w, h } = viewport();
-      div.style.width = w + 'px'; div.style.height = h + 'px';
-    }
-
-    function sizeWebview(wv) {
-      const { w, h } = viewport();
-      wv.style.width = w + 'px'; wv.style.height = h + 'px';
-      wv.style.minWidth = w + 'px'; wv.style.minHeight = h + 'px';
+      el.style.width = w + 'px'; el.style.height = h + 'px';
+      el.style.minWidth = w + 'px'; el.style.minHeight = h + 'px';
     }
 
     function sizeAll() {
-      document.querySelectorAll('.buffer').forEach(sizeBuffer);
-      document.querySelectorAll('webview').forEach(sizeWebview);
+      document.querySelectorAll('#pool webview').forEach(sizeEl);
     }
     window.addEventListener('resize', sizeAll);
-    sizeAll();
 
-    // ── navigation state ───────────────────────────────────────────────────
+    // ── navigation ─────────────────────────────────────────────────────────
     const nav = { idx: 0, items: [], skip: null, jumpTo: null };
     const navEl = document.getElementById('nav-indicator');
     let navHideTimer = null;
@@ -155,11 +138,8 @@
     }
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'ArrowRight' && nav.skip) {
-        nav.skip();
-      }
+      if (e.key === 'ArrowRight' && nav.skip) nav.skip();
       if (e.key === 'ArrowLeft' && nav.items.length > 0) {
-        // go back two steps because the loop will add one
         nav.jumpTo = (nav.idx - 1 + nav.items.length) % nav.items.length;
         if (nav.skip) nav.skip();
       }
@@ -175,12 +155,9 @@
     // ── config ─────────────────────────────────────────────────────────────
     function loadConfig() {
       try {
-        const fs = require('fs');
-        const path = require('path');
+        const fs = require('fs'), path = require('path');
         return JSON.parse(fs.readFileSync(path.join(__dirname, 'playlist.json'), 'utf8'));
-      } catch (_) {
-        return { interval: 10000, items: [] };
-      }
+      } catch (_) { return { interval: 10000, items: [] }; }
     }
 
     function normalizeItem(item) {
@@ -188,242 +165,7 @@
       return { src: item.src || item.url || item.file, duration: item.duration || null };
     }
 
-    // ── YouTube via yt-dlp ─────────────────────────────────────────────────
-    function isYouTubeUrl(src) {
-      try { const h = new URL(src).hostname.toLowerCase(); return h === 'youtu.be' || h.endsWith('youtube.com'); }
-      catch (_) { return false; }
-    }
-
-    // Returns a direct streamable URL via yt-dlp, or null if unavailable.
-    function getYtDlpUrl(src) {
-      return new Promise(resolve => {
-        const { exec } = require('child_process');
-        exec(`yt-dlp -f "best[height<=1080][ext=mp4]/best[height<=1080]/best" --get-url "${src}"`,
-          { timeout: 25000 },
-          (err, stdout) => resolve(err ? null : (stdout.trim().split('\n')[0] || null))
-        );
-      });
-    }
-
-    function loadVideoDirectly(div, src, waitForEnd) {
-      return new Promise((resolve, reject) => {
-        const vid = document.createElement('video');
-        vid.className = 'media'; vid.playsInline = true;
-        vid.oncanplay = () => { div.appendChild(vid); resolve({ el: vid, waitForEnd }); };
-        vid.onerror   = () => reject(new Error(`Video error: ${src}`));
-        vid.src = src; vid.load();
-      });
-    }
-
-    // ── Events widget ──────────────────────────────────────────────────────
-    async function loadEventsWidget(div) {
-      const el = document.createElement('div');
-      el.className = 'events-widget';
-      div.appendChild(el);
-      try {
-        const fs   = require('fs');
-        const path = require('path');
-        const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'events.json'), 'utf8'));
-
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-
-        const events = (data.events || [])
-          .map(ev => {
-            const start = new Date(ev.date);   start.setHours(0, 0, 0, 0);
-            const end   = ev.endDate ? new Date(ev.endDate) : new Date(ev.date);
-            end.setHours(0, 0, 0, 0);
-            const daysToStart = Math.round((start - today) / 86400000);
-            const daysToEnd   = Math.round((end   - today) / 86400000);
-            return { ...ev, start, end, daysToStart, daysToEnd };
-          })
-          .filter(ev => ev.daysToEnd >= 0)  // hide fully past events
-          .sort((a, b) => a.start - b.start)
-          .slice(0, 7);
-
-        function countdown(ev) {
-          if (ev.daysToStart <= 0 && ev.daysToEnd >= 0) {
-            if (ev.daysToEnd === 0) return { text: 'Tänään – viimeinen päivä', color: '#22c55e' };
-            return { text: `Käynnissä · ${ev.daysToEnd} pv jäljellä`, color: '#22c55e' };
-          }
-          if (ev.daysToStart === 0) return { text: 'Tänään!',   color: '#22c55e' };
-          if (ev.daysToStart === 1) return { text: 'Huomenna',  color: '#84cc16' };
-          if (ev.daysToStart <= 7) return { text: `${ev.daysToStart} päivän päästä`, color: '#eab308' };
-          return { text: `${ev.daysToStart} päivän päästä`, color: '#3a5a7a' };
-        }
-
-        function fmtDate(ev) {
-          const o = { day: 'numeric', month: 'numeric' };
-          if (ev.endDate && ev.start.getTime() !== ev.end.getTime())
-            return `${ev.start.toLocaleDateString('fi-FI', o)}–${ev.end.toLocaleDateString('fi-FI', o)}`;
-          return ev.start.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric', year: 'numeric' });
-        }
-
-        const rows = events.map(ev => {
-          const cd = countdown(ev);
-          return `<div class="ev-row">
-            <div>
-              <div class="ev-name">${esc(ev.name)}</div>
-              <div class="ev-countdown" style="color:${cd.color}">${esc(cd.text)}</div>
-            </div>
-            <div class="ev-date">${esc(fmtDate(ev))}</div>
-          </div>`;
-        }).join('');
-
-        const now = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
-        el.innerHTML = `
-          <div class="events-header">
-            <span class="events-title">📅 ${esc(data.title || 'Tapahtumat')}</span>
-            <span class="events-time">${now}</span>
-          </div>
-          <div class="events-list">${rows || '<div style="color:#2a3a4a;padding:24px;font-size:1.2rem">Ei tulevia tapahtumia</div>'}</div>`;
-      } catch (e) {
-        el.innerHTML = `<div style="color:#2a3a4a;padding:48px;font-size:1.1rem">events.json ei saatavilla: ${esc(e.message)}</div>`;
-      }
-      return { el, waitForEnd: false };
-    }
-
-    // ── Aurora forecast widget ─────────────────────────────────────────────
-    function kpColor(kp) {
-      if (kp < 2) return '#22c55e';
-      if (kp < 4) return '#84cc16';
-      if (kp < 5) return '#eab308';
-      if (kp < 6) return '#f97316';
-      if (kp < 7) return '#ef4444';
-      return '#a855f7';
-    }
-
-    function kpStormLevel(kp) {
-      if (kp < 4) return 'Rauhallinen';
-      if (kp < 5) return 'Epärauhallinen';
-      if (kp < 6) return 'G1 – Pieni myrsky';
-      if (kp < 7) return 'G2 – Kohtalainen myrsky';
-      if (kp < 8) return 'G3 – Voimakas myrsky';
-      if (kp < 9) return 'G4 – Ankara myrsky';
-      return 'G5 – Äärimmäinen myrsky';
-    }
-
-    function cityVisibilityHtml(kp) {
-      // minKp for visibility at each latitude (dark, clear skies)
-      const cities = [
-        { name: 'Utsjoki (70°N)',   minKp: 0 },
-        { name: 'Rovaniemi (67°N)', minKp: 3 },
-        { name: 'Oulu (65°N)',      minKp: 5 },
-        { name: 'Kuopio (63°N)',    minKp: 6 },
-        { name: 'Tampere (61°N)',   minKp: 7 },
-        { name: 'Helsinki (60°N)',  minKp: 7.5 },
-      ];
-      return cities.map(c => {
-        const visible = kp >= c.minKp;
-        return `<div class="aurora-city">
-          <span class="aurora-city-name">${esc(c.name)}</span>
-          <span style="color:${visible ? '#22c55e' : '#223040'};font-weight:600">
-            ${visible ? '✓ Mahdollinen' : '✗ Ei näy'}
-          </span>
-        </div>`;
-      }).join('');
-    }
-
-    async function loadAuroraWidget(div) {
-      const el = document.createElement('div');
-      el.className = 'aurora-widget';
-      div.appendChild(el);
-      try {
-        const [rawNow, rawHist] = await Promise.all([
-          nodeFetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
-          nodeFetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'),
-        ]);
-        const nowArr  = JSON.parse(rawNow);
-        const histArr = JSON.parse(rawHist).slice(1); // remove header row
-
-        const kp    = parseFloat(nowArr[nowArr.length - 1][1]);
-        const color = kpColor(kp);
-        const gaugeW = Math.min((kp / 9) * 100, 100).toFixed(1);
-        const now   = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
-
-        // Last 16 3-hour blocks = 48h history chart
-        const bars = histArr.slice(-16).map(r => {
-          const v = parseFloat(r[1]);
-          const h = Math.max(4, Math.round((v / 9) * 100));
-          return `<div style="flex:1;height:${h}%;background:${kpColor(v)};border-radius:3px 3px 0 0;align-self:flex-end;opacity:.85"></div>`;
-        }).join('');
-
-        el.innerHTML = `
-          <div class="aurora-header">
-            <span class="aurora-title">🌌 Revontuliennuste</span>
-            <span class="aurora-time">${esc(now)}</span>
-          </div>
-          <div class="aurora-body">
-            <div class="aurora-left">
-              <div class="aurora-kp-num" style="color:${color}">${kp.toFixed(1)}</div>
-              <div class="aurora-kp-sub">Kp-indeksi</div>
-              <div class="aurora-storm" style="color:${color}">${esc(kpStormLevel(kp))}</div>
-              <div class="aurora-gauge-track">
-                <div class="aurora-gauge-fill" style="width:${gaugeW}%;background:${color}"></div>
-              </div>
-              <div class="aurora-gauge-ticks"><span>0</span><span>3</span><span>5</span><span>7</span><span>9</span></div>
-              <div class="aurora-history-label">Viimeinen 48h (3h jaksoissa)</div>
-              <div class="aurora-bars">${bars}</div>
-            </div>
-            <div class="aurora-right">
-              <div class="aurora-vis-title">Näkyvyys tänä yönä</div>
-              ${cityVisibilityHtml(kp)}
-            </div>
-          </div>`;
-      } catch (e) {
-        el.innerHTML = `<div style="color:#334;padding:48px;font-size:1.1rem">Revontulidata ei saatavilla: ${esc(e.message)}</div>`;
-      }
-      return { el, waitForEnd: false };
-    }
-
-    // Injected into every URL webview — clicks "essential only" or "accept all" cookie banners.
-    const COOKIE_CONSENT_JS = `
-      (function () {
-        function tryDismiss() {
-          const els = [...document.querySelectorAll('button, [role="button"]')];
-          const essential = els.find(e => /vain välttämättömät|reject all|only (necessary|essential)|decline all|ablehnen|weiger/i.test(e.textContent));
-          const accept    = els.find(e => /hyväksy kaikki|accept all|alle akzeptieren|tout accepter|agree to all/i.test(e.textContent));
-          const btn = essential || accept;
-          if (btn) { btn.click(); return true; }
-          return false;
-        }
-        if (!tryDismiss()) {
-          setTimeout(tryDismiss, 1500);
-          setTimeout(tryDismiss, 4000);
-        }
-      })();
-    `;
-
-    const YT_HIDE_CSS = `
-      ytd-masthead, #masthead-container { display: none !important; }
-      tp-yt-app-drawer, ytd-mini-guide-renderer { display: none !important; }
-      #secondary, ytd-watch-next-secondary-results-renderer { display: none !important; }
-      #chat-container { display: none !important; }
-      body { overflow: hidden !important; }
-    `;
-
-    // ── media type ─────────────────────────────────────────────────────────
-    function mediaType(src) {
-      if (src.startsWith('aurora:')) return 'aurora';
-      if (src.startsWith('events:')) return 'events';
-      if (/^https?:\/\//i.test(src)) {
-        try {
-          const u = new URL(src);
-          if (isYouTubeUrl(src)) return 'youtube';
-          if (
-            /\.(rss|atom)(\?|$)/i.test(u.pathname) ||
-            u.pathname.startsWith('/rss') ||
-            u.hostname.startsWith('feeds.') ||
-            u.hostname.includes('rss')
-          ) return 'rss';
-        } catch (_) {}
-        return 'url';
-      }
-      if (/\.(jpe?g|png|gif|webp|svg|bmp)$/i.test(src)) return 'image';
-      if (/\.(mp4|webm|ogg|mov|avi)$/i.test(src)) return 'video';
-      return 'url';
-    }
-
-    // ── RSS renderer ────────────────────────────────────────────────────────
+    // ── helpers ─────────────────────────────────────────────────────────────
     function esc(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
@@ -436,37 +178,134 @@
     function nodeFetch(url) {
       return new Promise((resolve, reject) => {
         const mod = require(url.startsWith('https') ? 'https' : 'http');
-        const req = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/rss+xml,application/xml,text/xml' } }, res => {
-          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            resolve(nodeFetch(res.headers.location));
-            return;
-          }
-          let data = '';
-          res.setEncoding('utf8');
-          res.on('data', c => data += c);
-          res.on('end', () => resolve(data));
+        const req = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml,application/xml,text/xml' } }, res => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) { resolve(nodeFetch(res.headers.location)); return; }
+          let data = ''; res.setEncoding('utf8');
+          res.on('data', c => data += c); res.on('end', () => resolve(data));
         });
         req.on('error', reject);
       });
     }
 
-    async function loadRssIntoBuffer(div, item) {
-      const text = await nodeFetch(item.src);
-      const xml = new DOMParser().parseFromString(text, 'application/xml');
+    function isYouTubeUrl(src) {
+      try { const h = new URL(src).hostname.toLowerCase(); return h === 'youtu.be' || h.endsWith('youtube.com'); }
+      catch (_) { return false; }
+    }
 
+    // ── media type ─────────────────────────────────────────────────────────
+    function mediaType(src) {
+      if (src.startsWith('aurora:')) return 'aurora';
+      if (src.startsWith('events:')) return 'events';
+      if (/^https?:\/\//i.test(src)) {
+        try {
+          const u = new URL(src);
+          if (isYouTubeUrl(src)) return 'youtube';
+          if (/\.(rss|atom)(\?|$)/i.test(u.pathname) || u.pathname.startsWith('/rss') ||
+              u.hostname.startsWith('feeds.') || u.hostname.includes('rss')) return 'rss';
+        } catch (_) {}
+        return 'url';
+      }
+      if (/\.(jpe?g|png|gif|webp|svg|bmp)$/i.test(src)) return 'image';
+      if (/\.(mp4|webm|ogg|mov|avi)$/i.test(src)) return 'video';
+      return 'url';
+    }
+
+    // ── cookie consent injected into every webview ──────────────────────────
+    const COOKIE_CONSENT_JS = `
+      (function () {
+        function tryDismiss() {
+          const els = [...document.querySelectorAll('button,[role="button"]')];
+          const btn = els.find(e => /vain välttämättömät|reject all|only (necessary|essential)|decline all|ablehnen|weiger/i.test(e.textContent))
+                   || els.find(e => /hyväksy kaikki|accept all|alle akzeptieren|tout accepter|agree to all/i.test(e.textContent));
+          if (btn) { btn.click(); return true; } return false;
+        }
+        if (!tryDismiss()) { setTimeout(tryDismiss, 1500); setTimeout(tryDismiss, 4000); }
+      })();
+    `;
+
+    // ── preload pool ────────────────────────────────────────────────────────
+    const poolDiv   = document.getElementById('pool');
+    const overlayDiv = document.getElementById('overlay');
+    const pool = {}; // src -> webview element
+    let activeWv = null;
+
+    function addToPool(item) {
+      const type = mediaType(item.src);
+      if (type !== 'url' && type !== 'youtube') return;
+      if (pool[item.src]) return;
+
+      const wv = document.createElement('webview');
+      sizeEl(wv);
+      wv.setAttribute('partition', 'persist:signage');
+      wv.setAttribute('allowfullscreen', 'true');
+      wv.setAttribute('allowpopups', 'false');
+
+      let src = item.src;
+      if (type === 'youtube') {
+        try {
+          const u = new URL(item.src); u.searchParams.set('autoplay', '1'); src = u.toString();
+        } catch (_) {}
+        wv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+      }
+
+      wv.addEventListener('did-finish-load', () => {
+        sizeEl(wv);
+        wv.executeJavaScript(COOKIE_CONSENT_JS).catch(() => {});
+      });
+
+      poolDiv.appendChild(wv);
+      wv.src = src;
+      pool[item.src] = wv;
+      console.log('[pool] loading', src);
+    }
+
+    // Reload all webviews every 5 minutes
+    setInterval(() => {
+      Object.entries(pool).forEach(([src, wv]) => {
+        console.log('[pool] reloading', src);
+        try { wv.reload(); } catch (_) {}
+      });
+    }, 5 * 60 * 1000);
+
+    // ── show helpers ────────────────────────────────────────────────────────
+    function hideAll() {
+      if (activeWv) { activeWv.classList.remove('active'); activeWv = null; }
+      overlayDiv.classList.remove('active');
+      overlayDiv.innerHTML = '';
+    }
+
+    function showPoolItem(item) {
+      hideAll();
+      const wv = pool[item.src];
+      if (!wv) return;
+      wv.classList.add('active');
+      activeWv = wv;
+    }
+
+    async function showWidget(item) {
+      hideAll();
+      const type = mediaType(item.src);
+      if (type === 'rss')    await loadRssWidget(item);
+      if (type === 'aurora') await loadAuroraWidget();
+      if (type === 'events') await loadEventsWidget();
+      overlayDiv.classList.add('active');
+    }
+
+    // ── RSS widget ──────────────────────────────────────────────────────────
+    async function loadRssWidget(item) {
+      const text = await nodeFetch(item.src);
+      const xml  = new DOMParser().parseFromString(text, 'application/xml');
       const feedTitle = xml.querySelector('channel > title')?.textContent?.trim() || 'News';
       const entries = [...xml.querySelectorAll('item')].slice(0, 8).map(el => {
         const raw = el.querySelector('description')?.textContent || '';
-        const tmp = document.createElement('div');
-        tmp.innerHTML = raw;
+        const tmp = document.createElement('div'); tmp.innerHTML = raw;
         const desc = tmp.textContent.trim();
         return {
           title: el.querySelector('title')?.textContent?.trim() || '',
-          desc: desc.length > 220 ? desc.slice(0, 220) + '…' : desc,
-          date: fmtDate(el.querySelector('pubDate')?.textContent || ''),
+          desc:  desc.length > 220 ? desc.slice(0, 220) + '…' : desc,
+          date:  fmtDate(el.querySelector('pubDate')?.textContent || ''),
         };
       });
-
       const now = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
       const el = document.createElement('div');
       el.className = 'rss-feed';
@@ -476,97 +315,131 @@
           <span class="rss-clock">${esc(now)}</span>
         </div>
         <div class="rss-items">
-          ${entries.map(i => `
-            <div class="rss-item">
-              <div class="rss-item-title">${esc(i.title)}</div>
-              ${i.desc ? `<div class="rss-item-desc">${esc(i.desc)}</div>` : ''}
-              ${i.date ? `<div class="rss-item-date">${esc(i.date)}</div>` : ''}
-            </div>
-          `).join('')}
+          ${entries.map(i => `<div class="rss-item">
+            <div class="rss-item-title">${esc(i.title)}</div>
+            ${i.desc ? `<div class="rss-item-desc">${esc(i.desc)}</div>` : ''}
+            ${i.date ? `<div class="rss-item-date">${esc(i.date)}</div>` : ''}
+          </div>`).join('')}
         </div>`;
-      div.appendChild(el);
-      return { el, waitForEnd: false };
+      overlayDiv.appendChild(el);
     }
 
-    // ── buffer loading ──────────────────────────────────────────────────────
-    function makeWebview(src) {
-      const wv = document.createElement('webview');
-      wv.setAttribute('partition', 'persist:signage');
-      wv.setAttribute('allowfullscreen', 'true');
-      wv.setAttribute('allowpopups', 'false');
-      sizeWebview(wv);
-      return wv;
+    // ── Aurora widget ───────────────────────────────────────────────────────
+    function kpColor(kp) {
+      if (kp < 2) return '#22c55e'; if (kp < 4) return '#84cc16';
+      if (kp < 5) return '#eab308'; if (kp < 6) return '#f97316';
+      if (kp < 7) return '#ef4444'; return '#a855f7';
+    }
+    function kpStormLevel(kp) {
+      if (kp < 4) return 'Rauhallinen';     if (kp < 5) return 'Epärauhallinen';
+      if (kp < 6) return 'G1 – Pieni myrsky'; if (kp < 7) return 'G2 – Kohtalainen myrsky';
+      if (kp < 8) return 'G3 – Voimakas myrsky'; if (kp < 9) return 'G4 – Ankara myrsky';
+      return 'G5 – Äärimmäinen myrsky';
     }
 
-    function webviewPromise(div, wv, src) {
-      div.classList.add('no-fade');
-      div.appendChild(wv);
-      return new Promise(resolve => {
-        wv.addEventListener('dom-ready',       () => sizeWebview(wv), { once: true });
-        wv.addEventListener('did-finish-load', () => {
-          sizeWebview(wv);
-          wv.executeJavaScript(COOKIE_CONSENT_JS).catch(() => {});
-          resolve({ el: wv, waitForEnd: false });
-        }, { once: true });
-        wv.src = src;
-      });
-    }
-
-    async function loadIntoBuffer(div, item) {
-      div.innerHTML = '';
-      div.classList.remove('no-fade');
-      sizeBuffer(div);
-      const type = mediaType(item.src);
-
-      if (type === 'aurora')  return loadAuroraWidget(div);
-      if (type === 'events')  return loadEventsWidget(div);
-
-      if (type === 'rss') {
-        return loadRssIntoBuffer(div, item);
+    async function loadAuroraWidget() {
+      const el = document.createElement('div');
+      el.className = 'aurora-widget';
+      overlayDiv.appendChild(el);
+      try {
+        const [rNow, rHist] = await Promise.all([
+          nodeFetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
+          nodeFetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'),
+        ]);
+        const kp    = parseFloat(JSON.parse(rNow).at(-1)[1]);
+        const histArr = JSON.parse(rHist).slice(1);
+        const color = kpColor(kp);
+        const gaugeW = Math.min((kp / 9) * 100, 100).toFixed(1);
+        const now   = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+        const bars  = histArr.slice(-16).map(r => {
+          const v = parseFloat(r[1]), h = Math.max(4, Math.round((v / 9) * 100));
+          return `<div style="flex:1;height:${h}%;background:${kpColor(v)};border-radius:3px 3px 0 0;align-self:flex-end;opacity:.85"></div>`;
+        }).join('');
+        const cities = [
+          { name:'Utsjoki (70°N)', minKp:0 }, { name:'Rovaniemi (67°N)', minKp:3 },
+          { name:'Oulu (65°N)',    minKp:5 }, { name:'Kuopio (63°N)',    minKp:6 },
+          { name:'Tampere (61°N)',  minKp:7 }, { name:'Helsinki (60°N)', minKp:7.5 },
+        ];
+        el.innerHTML = `
+          <div class="aurora-header">
+            <span class="aurora-title">🌌 Revontuliennuste</span>
+            <span class="aurora-time">${esc(now)}</span>
+          </div>
+          <div class="aurora-body">
+            <div class="aurora-left">
+              <div class="aurora-kp-num" style="color:${color}">${kp.toFixed(1)}</div>
+              <div class="aurora-kp-sub">Kp-indeksi</div>
+              <div class="aurora-storm" style="color:${color}">${esc(kpStormLevel(kp))}</div>
+              <div class="aurora-gauge-track"><div class="aurora-gauge-fill" style="width:${gaugeW}%;background:${color}"></div></div>
+              <div class="aurora-gauge-ticks"><span>0</span><span>3</span><span>5</span><span>7</span><span>9</span></div>
+              <div class="aurora-history-label">Viimeinen 48h</div>
+              <div class="aurora-bars">${bars}</div>
+            </div>
+            <div class="aurora-right">
+              <div class="aurora-vis-title">Näkyvyys tänä yönä</div>
+              ${cities.map(c => `<div class="aurora-city">
+                <span class="aurora-city-name">${esc(c.name)}</span>
+                <span style="color:${kp>=c.minKp?'#22c55e':'#223040'};font-weight:600">${kp>=c.minKp?'✓ Mahdollinen':'✗ Ei näy'}</span>
+              </div>`).join('')}
+            </div>
+          </div>`;
+      } catch (e) {
+        el.innerHTML = `<div style="color:#334;padding:48px">Revontulidata ei saatavilla: ${esc(e.message)}</div>`;
       }
+    }
 
-      if (type === 'youtube') {
-        const directUrl = await getYtDlpUrl(item.src);
-        if (directUrl) {
-          console.log('[signage] yt-dlp resolved:', directUrl.slice(0, 80));
-          return loadVideoDirectly(div, directUrl, !item.duration);
+    // ── Events widget ───────────────────────────────────────────────────────
+    async function loadEventsWidget() {
+      const el = document.createElement('div');
+      el.className = 'events-widget';
+      overlayDiv.appendChild(el);
+      try {
+        const fs = require('fs'), path = require('path');
+        const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'events.json'), 'utf8'));
+        const today = new Date(); today.setHours(0,0,0,0);
+        const events = (data.events || []).map(ev => {
+          const start = new Date(ev.date); start.setHours(0,0,0,0);
+          const end   = new Date(ev.endDate || ev.date); end.setHours(0,0,0,0);
+          return { ...ev, start, end,
+            daysToStart: Math.round((start-today)/86400000),
+            daysToEnd:   Math.round((end-today)/86400000) };
+        }).filter(ev => ev.daysToEnd >= 0).sort((a,b) => a.start-b.start).slice(0,7);
+
+        function countdown(ev) {
+          if (ev.daysToStart <= 0 && ev.daysToEnd >= 0)
+            return ev.daysToEnd === 0
+              ? { text:'Tänään – viimeinen päivä', color:'#22c55e' }
+              : { text:`Käynnissä · ${ev.daysToEnd} pv jäljellä`, color:'#22c55e' };
+          if (ev.daysToStart === 0) return { text:'Tänään!',  color:'#22c55e' };
+          if (ev.daysToStart === 1) return { text:'Huomenna', color:'#84cc16' };
+          if (ev.daysToStart <= 7)  return { text:`${ev.daysToStart} päivän päästä`, color:'#eab308' };
+          return { text:`${ev.daysToStart} päivän päästä`, color:'#3a5a7a' };
         }
-        // yt-dlp not installed or failed — fall back to watch page in webview
-        console.warn('[signage] yt-dlp unavailable, falling back to webview');
-        const u = new URL(item.src);
-        u.searchParams.set('autoplay', '1');
-        const wv = makeWebview(u.toString());
-        wv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
-        return webviewPromise(div, wv, u.toString());
-      }
-
-      if (type === 'url') {
-        return webviewPromise(div, makeWebview(item.src), item.src);
-      }
-
-      if (type === 'image') {
-        return new Promise((resolve, reject) => {
-          const img = document.createElement('img');
-          img.className = 'media';
-          img.onload  = () => { div.appendChild(img); resolve({ el: img, waitForEnd: false }); };
-          img.onerror = () => reject(new Error(`Failed to load image: ${item.src}`));
-          img.src = item.src;
-        });
-      }
-
-      if (type === 'video') {
-        return new Promise((resolve, reject) => {
-          const vid = document.createElement('video');
-          vid.className = 'media'; vid.muted = true; vid.playsInline = true;
-          vid.oncanplay = () => { div.appendChild(vid); resolve({ el: vid, waitForEnd: !item.duration }); };
-          vid.onerror   = () => reject(new Error(`Failed to load video: ${item.src}`));
-          vid.src = item.src; vid.load();
-        });
+        function fmtEvDate(ev) {
+          const o = { day:'numeric', month:'numeric' };
+          return ev.endDate && ev.start.getTime()!==ev.end.getTime()
+            ? `${ev.start.toLocaleDateString('fi-FI',o)}–${ev.end.toLocaleDateString('fi-FI',o)}`
+            : ev.start.toLocaleDateString('fi-FI',{...o, year:'numeric'});
+        }
+        const now = new Date().toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'});
+        el.innerHTML = `
+          <div class="events-header">
+            <span class="events-title">📅 ${esc(data.title||'Tapahtumat')}</span>
+            <span class="events-time">${now}</span>
+          </div>
+          <div class="events-list">
+            ${events.map(ev => { const cd=countdown(ev); return `<div class="ev-row">
+              <div>
+                <div class="ev-name">${esc(ev.name)}</div>
+                <div class="ev-countdown" style="color:${cd.color}">${esc(cd.text)}</div>
+              </div>
+              <div class="ev-date">${esc(fmtEvDate(ev))}</div>
+            </div>`; }).join('') || '<div style="color:#2a3a4a;padding:24px;font-size:1.2rem">Ei tulevia tapahtumia</div>'}
+          </div>`;
+      } catch (e) {
+        el.innerHTML = `<div style="color:#2a3a4a;padding:48px">events.json ei saatavilla: ${esc(e.message)}</div>`;
       }
     }
-
-    function swap(from, to) { to.classList.add('active'); from.classList.remove('active'); }
-    function waitForVideoEnd(vid) { return new Promise(r => { vid.onended = r; }); }
 
     // ── main loop ───────────────────────────────────────────────────────────
     async function run() {
@@ -578,44 +451,31 @@
         return;
       }
 
-      const divA = document.getElementById('buf-a');
-      const divB = document.getElementById('buf-b');
-      let activeDiv = divA, inactiveDiv = divB;
-
-      // First item
-      try {
-        nav.idx = 0;
-        const { el, waitForEnd } = await loadIntoBuffer(activeDiv, nav.items[0]);
-        activeDiv.classList.add('active');
-        if (waitForEnd) { el.play(); await waitForVideoEnd(el); }
-        else { el.play && el.play(); await sleepOrSkip(nav.items[0].duration || config.interval || 10000); }
-      } catch (e) {
-        console.error(e);
-        await sleepOrSkip(3000);
-      }
+      // Preload all URL/YouTube items in parallel immediately
+      nav.items.forEach(addToPool);
 
       while (true) {
-        try { config = loadConfig(); nav.items = config.items.map(normalizeItem); } catch (_) {}
-
-        if (nav.jumpTo !== null) {
-          nav.idx = nav.jumpTo;
-          nav.jumpTo = null;
-        } else {
-          nav.idx = (nav.idx + 1) % nav.items.length;
-        }
-        showNavIndicator();
+        // Re-read config; add any new URLs that appeared
+        try { config = loadConfig(); nav.items = config.items.map(normalizeItem); nav.items.forEach(addToPool); } catch (_) {}
 
         const item = nav.items[nav.idx];
+        showNavIndicator();
+
+        const type = mediaType(item.src);
         try {
-          const { el, waitForEnd } = await loadIntoBuffer(inactiveDiv, item);
-          swap(activeDiv, inactiveDiv);
-          [activeDiv, inactiveDiv] = [inactiveDiv, activeDiv];
-          if (waitForEnd) { el.play(); await waitForVideoEnd(el); }
-          else { el.play && el.play(); await sleepOrSkip(item.duration || config.interval || 10000); }
+          if (type === 'url' || type === 'youtube') {
+            showPoolItem(item);
+          } else {
+            await showWidget(item);
+          }
         } catch (e) {
-          console.error('Skipping item due to error:', item.src, e.message);
-          await sleepOrSkip(3000);
+          console.error('Error showing item:', item.src, e.message);
         }
+
+        await sleepOrSkip(item.duration || config.interval || 10000);
+
+        if (nav.jumpTo !== null) { nav.idx = nav.jumpTo; nav.jumpTo = null; }
+        else { nav.idx = (nav.idx + 1) % nav.items.length; }
       }
     }
 
