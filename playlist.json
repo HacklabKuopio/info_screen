@@ -12,6 +12,6 @@
     { "src": "https://yle.fi/rss/t/18-141764/fi", "duration": 10000 },
     { "src": "events:local", "duration": 10000 },
     { "src": "https://eumostwanted.eu/fi", "duration": 10000 },
-    { "src": "https://koodaripula.fi/trends#filtered_jobs", "duration": 10000 }
+    { "src": "https://koodaripula.fi/trends?hideOld=1&activeToday=1&cities=kuopio#filtered_jobs", "duration": 20000 }
   ]
 }
