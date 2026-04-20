@@ -1,17 +1,16 @@
 {
-  "interval": 10000,
+  "interval": 20000,
   "items": [
-    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201417", "duration": 10000 },
-    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201418", "duration": 10000 },
-    { "src": "https://news.ycombinator.com", "duration": 10000, "zoom": 2.2 },
-    { "src": "https://hnrss.org/frontpage", "duration": 10000 },
-    { "src": "https://yle.fi/rss/uutiset/paauutiset", "duration": 10000 },
-    { "src": "https://www.fingrid.fi/-/custom/sahkojarjestelman-tila-169/", "duration": 10000 },
-    { "src": "https://yle.fi/rss/uutiset/tuoreimmat", "duration": 10000 },
-    { "src": "https://aurora.jeb4.dev", "duration": 10000 },
-    { "src": "https://yle.fi/rss/t/18-141764/fi", "duration": 10000 },
-    { "src": "events:local", "duration": 10000 },
-    { "src": "https://eumostwanted.eu/fi", "duration": 10000 },
-    { "src": "https://koodaripula.fi/trends?hideOld=1&activeToday=1&cities=kuopio#filtered_jobs", "duration": 20000,  "zoom": 1.5 }
+    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201417" },
+    { "src": "https://pysakit.kuopio.fi/busstop.html?id=201418" },
+    { "src": "https://hnrss.org/frontpage" },
+    { "src": "https://yle.fi/rss/uutiset/paauutiset" },
+    { "src": "https://www.fingrid.fi/-/custom/sahkojarjestelman-tila-169/" },
+    { "src": "https://yle.fi/rss/uutiset/tuoreimmat" },
+    { "src": "https://aurora.jeb4.dev" },
+    { "src": "https://yle.fi/rss/t/18-141764/fi" },
+    { "src": "events:local" },
+    { "src": "https://eumostwanted.eu/fi" },
+    { "src": "https://koodaripula.fi/trends?hideOld=1&activeToday=1&cities=kuopio#filtered_jobs",  "zoom": 1.5 }
   ]
 }
