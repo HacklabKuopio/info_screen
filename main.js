@@ -131,9 +131,10 @@ function createWindow() {
   });
   win.once('ready-to-show', () => {
     // Re-apply fullscreen mode after renderer is ready to avoid startup race conditions.
-    win.setKiosk(true);
-    win.setFullScreen(true);
-    win.maximize();
+    setTimeout(() => {
+      win.setFullScreen(true);
+      win.setKiosk(true);
+    }, 250);
   });
 
   win.loadFile('index.html');
