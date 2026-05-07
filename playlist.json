@@ -7,10 +7,11 @@
     { "src": "https://yle.fi/rss/uutiset/paauutiset" },
     { "src": "https://www.fingrid.fi/-/custom/sahkojarjestelman-tila-169/" },
     { "src": "https://yle.fi/rss/uutiset/tuoreimmat" },
+    { "src": "https://www.savonsanomat.fi/feed/rss" },
     { "src": "https://aurora.jeb4.dev" },
     { "src": "https://yle.fi/rss/t/18-141764/fi" },
     { "src": "events:local" },
-    { "src": "https://eumostwanted.eu/fi" },
-    { "src": "https://koodaripula.fi/trends?hideOld=1&activeToday=1&cities=kuopio#filtered_jobs",  "zoom": 1.5 }
+    { "src": "goodnews:all", "duration": 30000 },
+    { "src": "https://koodaripula.fi/trends?hideOld=1&activeToday=1&cities=kuopio#filtered_jobs", "zoom": 1.5 }
   ]
 }

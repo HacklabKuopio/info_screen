@@ -1,223 +1,545 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    <meta charset="utf-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    /* Pool webviews: all live in the DOM, only one visible at a time */
-    #pool webview {
-      position: fixed; top: 0; left: 0;
-      display: inline-flex; border: none;
-      visibility: hidden; z-index: 1;
-    }
-    #pool webview.active { visibility: visible; z-index: 2; }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
 
-    /* Overlay: RSS / aurora / events widgets */
-    #overlay {
-      position: fixed; inset: 0;
-      visibility: hidden; z-index: 2; background: #000;
-      display: flex; flex-direction: column;
-    }
-    #overlay.active { visibility: visible; }
+        /* Pool webviews: all live in the DOM, only one visible at a time */
+        #pool webview {
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: inline-flex;
+            border: none;
+            visibility: hidden;
+            z-index: 1;
+        }
 
-    img.media, video.media { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+        #pool webview.active {
+            visibility: visible;
+            z-index: 2;
+        }
 
-    /* RSS feed */
-    .rss-feed {
-      width: 100%; height: 100%;
-      background: #0d0d0d; color: #e0e0e0;
-      font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
-      display: flex; flex-direction: column;
-      padding: 64px 88px; overflow: hidden;
-    }
-    .rss-header {
-      display: flex; justify-content: space-between; align-items: baseline;
-      border-bottom: 2px solid #2a2a2a; padding-bottom: 24px; margin-bottom: 36px;
-    }
-    .rss-feed-title { font-size: 2.6rem; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
-    .rss-clock { font-size: 2rem; color: #666; font-variant-numeric: tabular-nums; }
-    .rss-items { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-    .rss-item { padding: 26px 0; border-bottom: 1px solid #1c1c1c; }
-    .rss-item:last-child { border-bottom: none; }
-    .rss-item-title { font-size: 2rem; font-weight: 600; color: #f0f0f0; line-height: 1.3; margin-bottom: 8px; }
-    .rss-item-desc { font-size: 1.35rem; color: #888; line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .rss-item-date { font-size: 1.05rem; color: #555; margin-top: 8px; }
+        /* Overlay: RSS / aurora / events widgets */
+        #overlay {
+            position: fixed;
+            inset: 0;
+            visibility: hidden;
+            z-index: 2;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+        }
 
-    /* Aurora forecast widget */
-    .aurora-widget {
-      width: 100%; height: 100%;
-      background: radial-gradient(ellipse at 50% 0%, #0e1d45 0%, #050810 65%);
-      color: #b8d0e8; font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
-      display: flex; flex-direction: column; padding: 64px 88px; overflow: hidden;
-    }
-    .aurora-header {
-      display: flex; justify-content: space-between; align-items: baseline;
-      border-bottom: 2px solid #1a2a45; padding-bottom: 24px; margin-bottom: 40px;
-    }
-    .aurora-title { font-size: 2.6rem; font-weight: 700; color: #ddeeff; }
-    .aurora-time  { font-size: 2rem; color: #4a6080; font-variant-numeric: tabular-nums; }
-    .aurora-body  { display: flex; gap: 80px; flex: 1; overflow: hidden; }
-    .aurora-left  { display: flex; flex-direction: column; width: 420px; flex-shrink: 0; }
-    .aurora-kp-num   { font-size: 9rem; font-weight: 800; line-height: 1; letter-spacing: -4px; }
-    .aurora-kp-sub   { font-size: 1.2rem; color: #4a6080; margin-bottom: 8px; }
-    .aurora-storm    { font-size: 1.7rem; font-weight: 600; margin-bottom: 32px; }
-    .aurora-gauge-track { height: 14px; background: #080f20; border-radius: 7px; overflow: hidden; margin-bottom: 8px; border: 1px solid #131e35; }
-    .aurora-gauge-fill  { height: 100%; border-radius: 7px; }
-    .aurora-gauge-ticks { display: flex; justify-content: space-between; font-size: 1rem; color: #3a5070; margin-bottom: 32px; }
-    .aurora-history-label { font-size: 1rem; color: #3a5070; margin-bottom: 10px; }
-    .aurora-bars { display: flex; height: 90px; align-items: flex-end; gap: 4px; }
-    .aurora-right { flex: 1; }
-    .aurora-vis-title { font-size: 1.2rem; color: #4a6080; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 0.06em; }
-    .aurora-city { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #0c1525; font-size: 1.6rem; }
-    .aurora-city:last-child { border-bottom: none; }
-    .aurora-city-name { color: #7a9ab8; }
+        #overlay.active {
+            visibility: visible;
+        }
 
-    /* Events widget */
-    .events-widget {
-      width: 100%; height: 100%;
-      background: linear-gradient(180deg, #f6f9fc 0%, #edf3f9 100%);
-      color: #16283a;
-      font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
-      display: flex; flex-direction: column; padding: 64px 88px; overflow: hidden;
-    }
-    .events-header {
-      display: flex; justify-content: space-between; align-items: baseline;
-      border-bottom: 3px solid #c4d5e8; padding-bottom: 24px; margin-bottom: 36px;
-    }
-    .events-title { font-size: 3.1rem; font-weight: 800; color: #0f2237; letter-spacing: -0.02em; }
-    .events-time  { font-size: 2.35rem; color: #2a4663; font-variant-numeric: tabular-nums; font-weight: 600; }
-    .events-list  { display: flex; flex-direction: column; gap: 16px; flex: 1; overflow: hidden; }
-    .ev-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 24px 30px;
-      border: 2px solid #d2e0ee;
-      border-radius: 18px;
-      background: #ffffff;
-      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
-    }
-    .ev-name      { font-size: 2.7rem; font-weight: 700; color: #102338; margin-bottom: 10px; line-height: 1.15; }
-    .ev-countdown { font-size: 1.8rem; font-weight: 700; }
-    .ev-date      { font-size: 2rem; color: #213b57; text-align: right; white-space: nowrap; font-weight: 600; }
+        img.media, video.media {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            background: #000;
+        }
 
-    /* Arrow-key nav indicator */
-    #nav-indicator {
-      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-      background: rgba(255,255,255,.14); color: #fff;
-      font: 600 13px/1 -apple-system, sans-serif;
-      padding: 8px 20px; border-radius: 20px;
-      z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none;
-    }
-    #nav-indicator.visible { opacity: 1; }
-  </style>
+        /* RSS feed */
+        .rss-feed {
+            width: 100%;
+            height: 100%;
+            background: #0d0d0d;
+            color: #e0e0e0;
+            font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            padding: 64px 88px;
+            overflow: hidden;
+        }
+
+        .rss-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 2px solid #2a2a2a;
+            padding-bottom: 24px;
+            margin-bottom: 36px;
+        }
+
+        .rss-feed-title {
+            font-size: 2.6rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }
+
+        .rss-clock {
+            font-size: 2rem;
+            color: #666;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rss-items {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .rss-item {
+            padding: 26px 0;
+            border-bottom: 1px solid #1c1c1c;
+        }
+
+        .rss-item:last-child {
+            border-bottom: none;
+        }
+
+        .rss-item-title {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #f0f0f0;
+            line-height: 1.3;
+            margin-bottom: 8px;
+        }
+
+        .rss-item-desc {
+            font-size: 1.35rem;
+            color: #888;
+            line-height: 1.5;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .rss-item-date {
+            font-size: 1.05rem;
+            color: #555;
+            margin-top: 8px;
+        }
+
+        /* Aurora forecast widget */
+        .aurora-widget {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 50% 0%, #0e1d45 0%, #050810 65%);
+            color: #b8d0e8;
+            font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            padding: 64px 88px;
+            overflow: hidden;
+        }
+
+        .aurora-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 2px solid #1a2a45;
+            padding-bottom: 24px;
+            margin-bottom: 40px;
+        }
+
+        .aurora-title {
+            font-size: 2.6rem;
+            font-weight: 700;
+            color: #ddeeff;
+        }
+
+        .aurora-time {
+            font-size: 2rem;
+            color: #4a6080;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .aurora-body {
+            display: flex;
+            gap: 80px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .aurora-left {
+            display: flex;
+            flex-direction: column;
+            width: 420px;
+            flex-shrink: 0;
+        }
+
+        .aurora-kp-num {
+            font-size: 9rem;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -4px;
+        }
+
+        .aurora-kp-sub {
+            font-size: 1.2rem;
+            color: #4a6080;
+            margin-bottom: 8px;
+        }
+
+        .aurora-storm {
+            font-size: 1.7rem;
+            font-weight: 600;
+            margin-bottom: 32px;
+        }
+
+        .aurora-gauge-track {
+            height: 14px;
+            background: #080f20;
+            border-radius: 7px;
+            overflow: hidden;
+            margin-bottom: 8px;
+            border: 1px solid #131e35;
+        }
+
+        .aurora-gauge-fill {
+            height: 100%;
+            border-radius: 7px;
+        }
+
+        .aurora-gauge-ticks {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1rem;
+            color: #3a5070;
+            margin-bottom: 32px;
+        }
+
+        .aurora-history-label {
+            font-size: 1rem;
+            color: #3a5070;
+            margin-bottom: 10px;
+        }
+
+        .aurora-bars {
+            display: flex;
+            height: 90px;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .aurora-right {
+            flex: 1;
+        }
+
+        .aurora-vis-title {
+            font-size: 1.2rem;
+            color: #4a6080;
+            margin-bottom: 18px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .aurora-city {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #0c1525;
+            font-size: 1.6rem;
+        }
+
+        .aurora-city:last-child {
+            border-bottom: none;
+        }
+
+        .aurora-city-name {
+            color: #7a9ab8;
+        }
+
+        /* Events widget */
+        .events-widget {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #f6f9fc 0%, #edf3f9 100%);
+            color: #16283a;
+            font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            padding: 64px 88px;
+            overflow: hidden;
+        }
+
+        .events-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 3px solid #c4d5e8;
+            padding-bottom: 24px;
+            margin-bottom: 36px;
+        }
+
+        .events-title {
+            font-size: 3.1rem;
+            font-weight: 800;
+            color: #0f2237;
+            letter-spacing: -0.02em;
+        }
+
+        .events-time {
+            font-size: 2.35rem;
+            color: #2a4663;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+        }
+
+        .events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .ev-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 30px;
+            border: 2px solid #d2e0ee;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+        }
+
+        .ev-name {
+            font-size: 2.7rem;
+            font-weight: 700;
+            color: #102338;
+            margin-bottom: 10px;
+            line-height: 1.15;
+        }
+
+        .ev-countdown {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .ev-date {
+            font-size: 2rem;
+            color: #213b57;
+            text-align: right;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        /* Good news widget */
+        .good-news-feed {
+            background: linear-gradient(160deg, #fffbeb 0%, #fef3c7 40%, #ecfdf5 100%);
+            color: #1a3a2a;
+        }
+
+        .good-news-feed .rss-header {
+            border-bottom-color: #a7f3d0;
+        }
+
+        .good-news-feed .rss-feed-title {
+            color: #065f46;
+        }
+
+        .good-news-feed .rss-clock {
+            color: #6b7280;
+        }
+
+        .good-news-feed .rss-item {
+            border-bottom-color: #d1fae5;
+        }
+
+        .good-news-feed .rss-item-title {
+            color: #064e3b;
+        }
+
+        .good-news-feed .rss-item-desc {
+            color: #374151;
+        }
+
+        .good-news-feed .rss-item-date {
+            color: #6b7280;
+        }
+
+        /* Arrow-key nav indicator */
+        #nav-indicator {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, .14);
+            color: #fff;
+            font: 600 13px/1 -apple-system, sans-serif;
+            padding: 8px 20px;
+            border-radius: 20px;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity .3s;
+            pointer-events: none;
+        }
+
+        #nav-indicator.visible {
+            opacity: 1;
+        }
+    </style>
 </head>
 <body>
-  <div id="pool"></div>
-  <div id="overlay"></div>
-  <div id="nav-indicator"></div>
+<div id="pool"></div>
+<div id="overlay"></div>
+<div id="nav-indicator"></div>
 
-  <script>
+<script>
     // ── sizing ─────────────────────────────────────────────────────────────
-    function viewport() { return { w: window.innerWidth, h: window.innerHeight }; }
+    function viewport() {
+        return {w: window.innerWidth, h: window.innerHeight};
+    }
 
     function sizeEl(el) {
-      const { w, h } = viewport();
-      el.style.width = w + 'px'; el.style.height = h + 'px';
-      el.style.minWidth = w + 'px'; el.style.minHeight = h + 'px';
+        const {w, h} = viewport();
+        el.style.width = w + 'px';
+        el.style.height = h + 'px';
+        el.style.minWidth = w + 'px';
+        el.style.minHeight = h + 'px';
     }
 
     function sizeAll() {
-      document.querySelectorAll('#pool webview').forEach(sizeEl);
+        document.querySelectorAll('#pool webview').forEach(sizeEl);
     }
+
     window.addEventListener('resize', sizeAll);
 
     // ── navigation ─────────────────────────────────────────────────────────
-    const nav = { idx: 0, items: [], skip: null, jumpTo: null };
+    const nav = {idx: 0, items: [], skip: null, jumpTo: null};
     const navEl = document.getElementById('nav-indicator');
     let navHideTimer = null;
 
     function showNavIndicator() {
-      navEl.textContent = `${nav.idx + 1} / ${nav.items.length}`;
-      navEl.classList.add('visible');
-      clearTimeout(navHideTimer);
-      navHideTimer = setTimeout(() => navEl.classList.remove('visible'), 2000);
+        navEl.textContent = `${nav.idx + 1} / ${nav.items.length}`;
+        navEl.classList.add('visible');
+        clearTimeout(navHideTimer);
+        navHideTimer = setTimeout(() => navEl.classList.remove('visible'), 2000);
     }
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'ArrowRight' && nav.skip) nav.skip();
-      if (e.key === 'ArrowLeft' && nav.items.length > 0) {
-        nav.jumpTo = (nav.idx - 1 + nav.items.length) % nav.items.length;
-        if (nav.skip) nav.skip();
-      }
+        if (e.key === 'ArrowRight' && nav.skip) nav.skip();
+        if (e.key === 'ArrowLeft' && nav.items.length > 0) {
+            nav.jumpTo = (nav.idx - 1 + nav.items.length) % nav.items.length;
+            if (nav.skip) nav.skip();
+        }
     });
 
     function sleepOrSkip(ms) {
-      return new Promise(r => {
-        const t = setTimeout(() => { nav.skip = null; r(); }, ms);
-        nav.skip = () => { clearTimeout(t); nav.skip = null; r(); };
-      });
+        return new Promise(r => {
+            const t = setTimeout(() => {
+                nav.skip = null;
+                r();
+            }, ms);
+            nav.skip = () => {
+                clearTimeout(t);
+                nav.skip = null;
+                r();
+            };
+        });
     }
 
     // ── config ─────────────────────────────────────────────────────────────
     function loadConfig() {
-      try {
-        const fs = require('fs'), path = require('path');
-        return JSON.parse(fs.readFileSync(path.join(__dirname, 'playlist.json'), 'utf8'));
-      } catch (_) { return { interval: 10000, items: [] }; }
+        try {
+            const fs = require('fs'), path = require('path');
+            return JSON.parse(fs.readFileSync(path.join(__dirname, 'playlist.json'), 'utf8'));
+        } catch (_) {
+            return {interval: 10000, items: []};
+        }
+    }
+
+    function getGeminiApiKey() {
+        const env = typeof process !== 'undefined' && process && process.env ? process.env : {};
+        return env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
     }
 
     function normalizeItem(item) {
-      if (typeof item === 'string') return { src: item, duration: null };
-      return { src: item.src || item.url || item.file, duration: item.duration || null, zoom: item.zoom || null };
+        if (typeof item === 'string') return {src: item, duration: null};
+        return {src: item.src || item.url || item.file, duration: item.duration || null, zoom: item.zoom || null};
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
     function esc(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function fmtDate(s) {
-      try { return new Date(s).toLocaleString('fi-FI', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); }
-      catch (_) { return s; }
+        try {
+            return new Date(s).toLocaleString('fi-FI', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (_) {
+            return s;
+        }
     }
 
     function nodeFetch(url) {
-      return new Promise((resolve, reject) => {
-        const mod = require(url.startsWith('https') ? 'https' : 'http');
-        const req = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml,application/xml,text/xml', 'Accept-Encoding': 'identity' } }, res => {
-          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            resolve(nodeFetch(new URL(res.headers.location, url).toString()));
-            return;
-          }
-          let data = ''; res.setEncoding('utf8');
-          res.on('data', c => data += c); res.on('end', () => resolve(data));
+        return new Promise((resolve, reject) => {
+            const mod = require(url.startsWith('https') ? 'https' : 'http');
+            const req = mod.get(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0',
+                    Accept: 'application/rss+xml,application/xml,text/xml',
+                    'Accept-Encoding': 'identity'
+                }
+            }, res => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    resolve(nodeFetch(new URL(res.headers.location, url).toString()));
+                    return;
+                }
+                let data = '';
+                res.setEncoding('utf8');
+                res.on('data', c => data += c);
+                res.on('end', () => resolve(data));
+            });
+            req.on('error', reject);
         });
-        req.on('error', reject);
-      });
     }
 
     function isYouTubeUrl(src) {
-      try { const h = new URL(src).hostname.toLowerCase(); return h === 'youtu.be' || h.endsWith('youtube.com'); }
-      catch (_) { return false; }
+        try {
+            const h = new URL(src).hostname.toLowerCase();
+            return h === 'youtu.be' || h.endsWith('youtube.com');
+        } catch (_) {
+            return false;
+        }
     }
 
     // ── media type ─────────────────────────────────────────────────────────
     function mediaType(src) {
-      if (src.startsWith('aurora:')) return 'aurora';
-      if (src.startsWith('events:')) return 'events';
-      if (/^https?:\/\//i.test(src)) {
-        try {
-          const u = new URL(src);
-          if (isYouTubeUrl(src)) return 'youtube';
-          if (/\.(rss|atom)(\?|$)/i.test(u.pathname) || u.pathname.startsWith('/rss') ||
-              u.hostname.startsWith('feeds.') || u.hostname.includes('rss')) return 'rss';
-        } catch (_) {}
+        if (src.startsWith('aurora:')) return 'aurora';
+        if (src.startsWith('events:')) return 'events';
+        if (src.startsWith('goodnews:')) return 'goodnews';
+        if (/^https?:\/\//i.test(src)) {
+            try {
+                const u = new URL(src);
+                if (isYouTubeUrl(src)) return 'youtube';
+                if (/\.(rss|atom)(\?|$)/i.test(u.pathname) || u.pathname.includes('/rss') ||
+                    u.hostname.startsWith('feeds.') || u.hostname.includes('rss')) return 'rss';
+            } catch (_) {
+            }
+            return 'url';
+        }
+        if (/\.(jpe?g|png|gif|webp|svg|bmp)$/i.test(src)) return 'image';
+        if (/\.(mp4|webm|ogg|mov|avi)$/i.test(src)) return 'video';
         return 'url';
-      }
-      if (/\.(jpe?g|png|gif|webp|svg|bmp)$/i.test(src)) return 'image';
-      if (/\.(mp4|webm|ogg|mov|avi)$/i.test(src)) return 'video';
-      return 'url';
     }
 
     // ── cookie consent injected into every webview ──────────────────────────
@@ -234,93 +556,106 @@
     `;
 
     // ── preload pool ────────────────────────────────────────────────────────
-    const poolDiv   = document.getElementById('pool');
+    const poolDiv = document.getElementById('pool');
     const overlayDiv = document.getElementById('overlay');
     const pool = {}; // src -> webview element
     let activeWv = null;
 
     function addToPool(item) {
-      const type = mediaType(item.src);
-      if (type !== 'url' && type !== 'youtube') return;
-      if (pool[item.src]) return;
+        const type = mediaType(item.src);
+        if (type !== 'url' && type !== 'youtube') return;
+        if (pool[item.src]) return;
 
-      const wv = document.createElement('webview');
-      sizeEl(wv);
-      wv.setAttribute('partition', 'persist:signage');
-      wv.setAttribute('allowfullscreen', 'true');
-      wv.setAttribute('allowpopups', 'false');
-
-      let src = item.src;
-      if (type === 'youtube') {
-        try {
-          const u = new URL(item.src); u.searchParams.set('autoplay', '1'); src = u.toString();
-        } catch (_) {}
-        wv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
-      }
-
-      wv.addEventListener('did-finish-load', () => {
+        const wv = document.createElement('webview');
         sizeEl(wv);
-        if (item.zoom) wv.executeJavaScript(`document.body.style.zoom='${item.zoom}'`).catch(() => {});
-        wv.executeJavaScript(COOKIE_CONSENT_JS).catch(() => {});
-      });
+        wv.setAttribute('partition', 'persist:signage');
+        wv.setAttribute('allowfullscreen', 'true');
+        wv.setAttribute('allowpopups', 'false');
 
-      poolDiv.appendChild(wv);
-      wv.src = src;
-      pool[item.src] = wv;
-      console.log('[pool] loading', src);
+        let src = item.src;
+        if (type === 'youtube') {
+            try {
+                const u = new URL(item.src);
+                u.searchParams.set('autoplay', '1');
+                src = u.toString();
+            } catch (_) {
+            }
+            wv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+        }
+
+        wv.addEventListener('did-finish-load', () => {
+            sizeEl(wv);
+            if (item.zoom) wv.executeJavaScript(`document.body.style.zoom='${item.zoom}'`).catch(() => {
+            });
+            wv.executeJavaScript(COOKIE_CONSENT_JS).catch(() => {
+            });
+        });
+
+        poolDiv.appendChild(wv);
+        wv.src = src;
+        pool[item.src] = wv;
+        console.log('[pool] loading', src);
     }
 
     // Reload all webviews every 5 minutes
     setInterval(() => {
-      Object.entries(pool).forEach(([src, wv]) => {
-        console.log('[pool] reloading', src);
-        try { wv.reload(); } catch (_) {}
-      });
+        Object.entries(pool).forEach(([src, wv]) => {
+            console.log('[pool] reloading', src);
+            try {
+                wv.reload();
+            } catch (_) {
+            }
+        });
     }, 5 * 60 * 1000);
 
     // ── show helpers ────────────────────────────────────────────────────────
     function hideAll() {
-      if (activeWv) { activeWv.classList.remove('active'); activeWv = null; }
-      overlayDiv.classList.remove('active');
-      overlayDiv.innerHTML = '';
+        if (activeWv) {
+            activeWv.classList.remove('active');
+            activeWv = null;
+        }
+        overlayDiv.classList.remove('active');
+        overlayDiv.innerHTML = '';
     }
 
     function showPoolItem(item) {
-      hideAll();
-      const wv = pool[item.src];
-      if (!wv) return;
-      wv.classList.add('active');
-      activeWv = wv;
+        hideAll();
+        const wv = pool[item.src];
+        if (!wv) return;
+        wv.classList.add('active');
+        activeWv = wv;
     }
 
     async function showWidget(item) {
-      hideAll();
-      const type = mediaType(item.src);
-      if (type === 'rss')    await loadRssWidget(item);
-      if (type === 'aurora') await loadAuroraWidget();
-      if (type === 'events') await loadEventsWidget();
-      overlayDiv.classList.add('active');
+        hideAll();
+        const type = mediaType(item.src);
+        if (type === 'rss') await loadRssWidget(item);
+        if (type === 'aurora') await loadAuroraWidget();
+        if (type === 'events') await loadEventsWidget();
+        if (type === 'goodnews') await loadGoodNewsWidget();
+        overlayDiv.classList.add('active');
     }
 
     // ── RSS widget ──────────────────────────────────────────────────────────
     async function loadRssWidget(item) {
-      const text = await nodeFetch(item.src);
-      const xml  = new DOMParser().parseFromString(text, 'application/xml');
-      const feedTitle = xml.querySelector('channel > title')?.textContent?.trim() || 'News';
-      const entries = [...xml.querySelectorAll('item')].slice(0, 5).map(el => {
-        const raw = el.querySelector('description')?.textContent || '';
-        const tmp = document.createElement('div'); tmp.innerHTML = raw;
-        const desc = tmp.textContent.trim();
-        return {
-          title: el.querySelector('title')?.textContent?.trim() || '',
-          desc:  desc.length > 220 ? desc.slice(0, 220) + '…' : desc,
-          date:  fmtDate(el.querySelector('pubDate')?.textContent || ''),
-        };
-      });
-      const now = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
-      const el = document.createElement('div');
-      el.className = 'rss-feed';
-      el.innerHTML = `
+        const text = await nodeFetch(item.src);
+        const xml = new DOMParser().parseFromString(text, 'application/xml');
+        const feedTitle = xml.querySelector('channel > title')?.textContent?.trim() || 'News';
+        const entries = [...xml.querySelectorAll('item')].slice(0, 5).map(el => {
+            const raw = el.querySelector('description')?.textContent || '';
+            const tmp = document.createElement('div');
+            tmp.innerHTML = raw;
+            const desc = tmp.textContent.trim();
+            return {
+                title: el.querySelector('title')?.textContent?.trim() || '',
+                desc: desc.length > 220 ? desc.slice(0, 220) + '…' : desc,
+                date: fmtDate(el.querySelector('pubDate')?.textContent || ''),
+            };
+        });
+        const now = new Date().toLocaleTimeString('fi-FI', {hour: '2-digit', minute: '2-digit'});
+        const el = document.createElement('div');
+        el.className = 'rss-feed';
+        el.innerHTML = `
         <div class="rss-header">
           <span class="rss-feed-title">${esc(feedTitle)}</span>
           <span class="rss-clock">${esc(now)}</span>
@@ -332,46 +667,53 @@
             ${i.date ? `<div class="rss-item-date">${esc(i.date)}</div>` : ''}
           </div>`).join('')}
         </div>`;
-      overlayDiv.appendChild(el);
+        overlayDiv.appendChild(el);
     }
 
     // ── Aurora widget ───────────────────────────────────────────────────────
     function kpColor(kp) {
-      if (kp < 2) return '#22c55e'; if (kp < 4) return '#84cc16';
-      if (kp < 5) return '#eab308'; if (kp < 6) return '#f97316';
-      if (kp < 7) return '#ef4444'; return '#a855f7';
+        if (kp < 2) return '#22c55e';
+        if (kp < 4) return '#84cc16';
+        if (kp < 5) return '#eab308';
+        if (kp < 6) return '#f97316';
+        if (kp < 7) return '#ef4444';
+        return '#a855f7';
     }
+
     function kpStormLevel(kp) {
-      if (kp < 4) return 'Rauhallinen';     if (kp < 5) return 'Epärauhallinen';
-      if (kp < 6) return 'G1 – Pieni myrsky'; if (kp < 7) return 'G2 – Kohtalainen myrsky';
-      if (kp < 8) return 'G3 – Voimakas myrsky'; if (kp < 9) return 'G4 – Ankara myrsky';
-      return 'G5 – Äärimmäinen myrsky';
+        if (kp < 4) return 'Rauhallinen';
+        if (kp < 5) return 'Epärauhallinen';
+        if (kp < 6) return 'G1 – Pieni myrsky';
+        if (kp < 7) return 'G2 – Kohtalainen myrsky';
+        if (kp < 8) return 'G3 – Voimakas myrsky';
+        if (kp < 9) return 'G4 – Ankara myrsky';
+        return 'G5 – Äärimmäinen myrsky';
     }
 
     async function loadAuroraWidget() {
-      const el = document.createElement('div');
-      el.className = 'aurora-widget';
-      overlayDiv.appendChild(el);
-      try {
-        const [rNow, rHist] = await Promise.all([
-          nodeFetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
-          nodeFetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'),
-        ]);
-        const kp    = parseFloat(JSON.parse(rNow).at(-1)[1]);
-        const histArr = JSON.parse(rHist).slice(1);
-        const color = kpColor(kp);
-        const gaugeW = Math.min((kp / 9) * 100, 100).toFixed(1);
-        const now   = new Date().toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
-        const bars  = histArr.slice(-16).map(r => {
-          const v = parseFloat(r[1]), h = Math.max(4, Math.round((v / 9) * 100));
-          return `<div style="flex:1;height:${h}%;background:${kpColor(v)};border-radius:3px 3px 0 0;align-self:flex-end;opacity:.85"></div>`;
-        }).join('');
-        const cities = [
-          { name:'Utsjoki (70°N)', minKp:0 }, { name:'Rovaniemi (67°N)', minKp:3 },
-          { name:'Oulu (65°N)',    minKp:5 }, { name:'Kuopio (63°N)',    minKp:6 },
-          { name:'Tampere (61°N)',  minKp:7 }, { name:'Helsinki (60°N)', minKp:7.5 },
-        ];
-        el.innerHTML = `
+        const el = document.createElement('div');
+        el.className = 'aurora-widget';
+        overlayDiv.appendChild(el);
+        try {
+            const [rNow, rHist] = await Promise.all([
+                nodeFetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
+                nodeFetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'),
+            ]);
+            const kp = parseFloat(JSON.parse(rNow).at(-1)[1]);
+            const histArr = JSON.parse(rHist).slice(1);
+            const color = kpColor(kp);
+            const gaugeW = Math.min((kp / 9) * 100, 100).toFixed(1);
+            const now = new Date().toLocaleTimeString('fi-FI', {hour: '2-digit', minute: '2-digit'});
+            const bars = histArr.slice(-16).map(r => {
+                const v = parseFloat(r[1]), h = Math.max(4, Math.round((v / 9) * 100));
+                return `<div style="flex:1;height:${h}%;background:${kpColor(v)};border-radius:3px 3px 0 0;align-self:flex-end;opacity:.85"></div>`;
+            }).join('');
+            const cities = [
+                {name: 'Utsjoki (70°N)', minKp: 0}, {name: 'Rovaniemi (67°N)', minKp: 3},
+                {name: 'Oulu (65°N)', minKp: 5}, {name: 'Kuopio (63°N)', minKp: 6},
+                {name: 'Tampere (61°N)', minKp: 7}, {name: 'Helsinki (60°N)', minKp: 7.5},
+            ];
+            el.innerHTML = `
           <div class="aurora-header">
             <span class="aurora-title">🌌 Revontuliennuste</span>
             <span class="aurora-time">${esc(now)}</span>
@@ -390,107 +732,313 @@
               <div class="aurora-vis-title">Näkyvyys tänä yönä</div>
               ${cities.map(c => `<div class="aurora-city">
                 <span class="aurora-city-name">${esc(c.name)}</span>
-                <span style="color:${kp>=c.minKp?'#22c55e':'#223040'};font-weight:600">${kp>=c.minKp?'✓ Mahdollinen':'✗ Ei näy'}</span>
+                <span style="color:${kp >= c.minKp ? '#22c55e' : '#223040'};font-weight:600">${kp >= c.minKp ? '✓ Mahdollinen' : '✗ Ei näy'}</span>
               </div>`).join('')}
             </div>
           </div>`;
-      } catch (e) {
-        el.innerHTML = `<div style="color:#334;padding:48px">Revontulidata ei saatavilla: ${esc(e.message)}</div>`;
-      }
+        } catch (e) {
+            el.innerHTML = `<div style="color:#334;padding:48px">Revontulidata ei saatavilla: ${esc(e.message)}</div>`;
+        }
     }
 
     // ── Events widget ───────────────────────────────────────────────────────
     async function loadEventsWidget() {
-      const el = document.createElement('div');
-      el.className = 'events-widget';
-      overlayDiv.appendChild(el);
-      try {
-        const fs = require('fs'), path = require('path');
-        const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'events.json'), 'utf8'));
-        const today = new Date(); today.setHours(0,0,0,0);
-        const events = (data.events || []).map(ev => {
-          const start = new Date(ev.date); start.setHours(0,0,0,0);
-          const end   = new Date(ev.endDate || ev.date); end.setHours(0,0,0,0);
-          return { ...ev, start, end,
-            daysToStart: Math.round((start-today)/86400000),
-            daysToEnd:   Math.round((end-today)/86400000) };
-        }).filter(ev => ev.daysToEnd >= 0).sort((a,b) => a.start-b.start).slice(0,7);
+        const el = document.createElement('div');
+        el.className = 'events-widget';
+        overlayDiv.appendChild(el);
+        try {
+            const fs = require('fs'), path = require('path');
+            const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'events.json'), 'utf8'));
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const events = (data.events || []).map(ev => {
+                const start = new Date(ev.date);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(ev.endDate || ev.date);
+                end.setHours(0, 0, 0, 0);
+                return {
+                    ...ev, start, end,
+                    daysToStart: Math.round((start - today) / 86400000),
+                    daysToEnd: Math.round((end - today) / 86400000)
+                };
+            }).filter(ev => ev.daysToEnd >= 0).sort((a, b) => a.start - b.start).slice(0, 7);
 
-        function countdown(ev) {
-          if (ev.daysToStart <= 0 && ev.daysToEnd >= 0)
-            return ev.daysToEnd === 0
-              ? { text:'Tänään – viimeinen päivä', color:'#0f766e' }
-              : { text:`Käynnissä · ${ev.daysToEnd} pv jäljellä`, color:'#0f766e' };
-          if (ev.daysToStart === 0) return { text:'Tänään!',  color:'#0f766e' };
-          if (ev.daysToStart === 1) return { text:'Huomenna', color:'#1d4ed8' };
-          if (ev.daysToStart <= 7)  return { text:`${ev.daysToStart} päivän päästä`, color:'#92400e' };
-          return { text:`${ev.daysToStart} päivän päästä`, color:'#334155' };
-        }
-        function fmtEvDate(ev) {
-          const o = { day:'numeric', month:'numeric' };
-          return ev.endDate && ev.start.getTime()!==ev.end.getTime()
-            ? `${ev.start.toLocaleDateString('fi-FI',o)}–${ev.end.toLocaleDateString('fi-FI',o)}`
-            : ev.start.toLocaleDateString('fi-FI',{...o, year:'numeric'});
-        }
-        const now = new Date().toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'});
-        el.innerHTML = `
+            function countdown(ev) {
+                if (ev.daysToStart <= 0 && ev.daysToEnd >= 0)
+                    return ev.daysToEnd === 0
+                        ? {text: 'Tänään – viimeinen päivä', color: '#0f766e'}
+                        : {text: `Käynnissä · ${ev.daysToEnd} pv jäljellä`, color: '#0f766e'};
+                if (ev.daysToStart === 0) return {text: 'Tänään!', color: '#0f766e'};
+                if (ev.daysToStart === 1) return {text: 'Huomenna', color: '#1d4ed8'};
+                if (ev.daysToStart <= 7) return {text: `${ev.daysToStart} päivän päästä`, color: '#92400e'};
+                return {text: `${ev.daysToStart} päivän päästä`, color: '#334155'};
+            }
+
+            function fmtEvDate(ev) {
+                const o = {day: 'numeric', month: 'numeric'};
+                return ev.endDate && ev.start.getTime() !== ev.end.getTime()
+                    ? `${ev.start.toLocaleDateString('fi-FI', o)}–${ev.end.toLocaleDateString('fi-FI', o)}`
+                    : ev.start.toLocaleDateString('fi-FI', {...o, year: 'numeric'});
+            }
+
+            const now = new Date().toLocaleTimeString('fi-FI', {hour: '2-digit', minute: '2-digit'});
+            el.innerHTML = `
           <div class="events-header">
-            <span class="events-title">📅 ${esc(data.title||'Tapahtumat')}</span>
+            <span class="events-title">📅 ${esc(data.title || 'Tapahtumat')}</span>
             <span class="events-time">${now}</span>
           </div>
           <div class="events-list">
-            ${events.map(ev => { const cd=countdown(ev); return `<div class="ev-row">
+            ${events.map(ev => {
+                const cd = countdown(ev);
+                return `<div class="ev-row">
               <div>
                 <div class="ev-name">${esc(ev.name)}</div>
                 <div class="ev-countdown" style="color:${cd.color}">${esc(cd.text)}</div>
               </div>
               <div class="ev-date">${esc(fmtEvDate(ev))}</div>
-            </div>`; }).join('') || '<div style="color:#213b57;background:#fff;border:2px solid #d2e0ee;border-radius:16px;padding:26px 30px;font-size:1.75rem;font-weight:600">Ei tulevia tapahtumia</div>'}
+            </div>`;
+            }).join('') || '<div style="color:#213b57;background:#fff;border:2px solid #d2e0ee;border-radius:16px;padding:26px 30px;font-size:1.75rem;font-weight:600">Ei tulevia tapahtumia</div>'}
           </div>`;
-      } catch (e) {
-        el.innerHTML = `<div style="color:#7f1d1d;background:#fff3f3;border:2px solid #fecaca;border-radius:16px;padding:40px;font-size:1.6rem;font-weight:600">events.json ei saatavilla: ${esc(e.message)}</div>`;
-      }
+        } catch (e) {
+            el.innerHTML = `<div style="color:#7f1d1d;background:#fff3f3;border:2px solid #fecaca;border-radius:16px;padding:40px;font-size:1.6rem;font-weight:600">events.json ei saatavilla: ${esc(e.message)}</div>`;
+        }
+    }
+
+    // ── Good News widget ────────────────────────────────────────────────────
+    const GOOD_NEWS_CACHE_KEY = 'goodnews_cache';
+    const GOOD_NEWS_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+    const GOOD_NEWS_SOURCES = [
+        {url: 'https://hnrss.org/frontpage', label: 'Hacker News'},
+        {url: 'https://yle.fi/rss/uutiset/paauutiset', label: 'Yle'},
+        {url: 'https://yle.fi/rss/uutiset/tuoreimmat', label: 'Yle'},
+        {url: 'https://yle.fi/rss/t/18-141764/fi', label: 'Yle'},
+        {url: 'https://www.hs.fi/rss/teasers/etusivu.xml', label: 'HS'},
+        {url: 'https://www.hs.fi/rss/tuoreimmat.xml', label: 'HS'},
+        {url: 'https://www.savonsanomat.fi/feed/rss', label: 'Savon Sanomat'},
+    ];
+
+    function geminiPost(apiKey, model, body) {
+        return new Promise((resolve, reject) => {
+            const https = require('https');
+            const bodyStr = JSON.stringify(body);
+            const req = https.request({
+                hostname: 'generativelanguage.googleapis.com',
+                path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr)},
+            }, res => {
+                let data = '';
+                res.setEncoding('utf8');
+                res.on('data', c => data += c);
+                res.on('end', () => resolve(data));
+            });
+            req.on('error', reject);
+            req.write(bodyStr);
+            req.end();
+        });
+    }
+
+    async function fetchAllNewsItems() {
+        const results = await Promise.allSettled(
+            GOOD_NEWS_SOURCES.map(async ({url, label}) => {
+                const text = await nodeFetch(url);
+                const xml = new DOMParser().parseFromString(text, 'application/xml');
+                return [...xml.querySelectorAll('item')].slice(0, 10).map(el => ({
+                    title: el.querySelector('title')?.textContent?.trim() || '',
+                    source: label,
+                    date: fmtDate(el.querySelector('pubDate')?.textContent || ''),
+                }));
+            })
+        );
+        return results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+    }
+
+    function scoreGoodNewsHeadline(title) {
+        const positiveWords = [
+            'hyvä', 'hyvia', 'onnistui', 'onnistuminen', 'voitti', 'voitto', 'säästää', 'suojelee',
+            'auttaa', 'auttavat', 'lahjoittaa', 'lahjoitus', 'kasvaa', 'paranee', 'parannus',
+            'avautuu', 'uusi', 'uusia', 'ennätys', 'ennatys', 'palkinto', 'menestys', 'ila', 'ilo',
+            'toivo', 'positiiv', 'rauhan', 'turvaa', 'terve', 'terveys', 'yhteisö', 'yhteiso'
+        ];
+        const negativeWords = [
+            'sota', 'murha', 'rikos', 'onnettomuus', 'tulipalo', 'varoitus', 'sulkee', 'irtisan',
+            'lakko', 'uhka', 'hyökkä', 'hyokka', 'kuole', 'riita', 'kriisi', 'pakol', 'katastrof'
+        ];
+        const normalized = String(title).toLowerCase();
+        let score = 0;
+        positiveWords.forEach(word => {
+            if (normalized.includes(word)) score += 2;
+        });
+        negativeWords.forEach(word => {
+            if (normalized.includes(word)) score -= 3;
+        });
+        return score;
+    }
+
+    function pickFallbackGoodNews(items) {
+        const scored = items
+            .map(item => ({item, score: scoreGoodNewsHeadline(item.title)}))
+            .filter(entry => entry.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .map(entry => entry.item);
+
+        if (scored.length > 0) return scored.slice(0, 6);
+        return items.slice(0, 6);
+    }
+
+    async function classifyGoodNews(items, apiKey) {
+        if (items.length === 0) return [];
+
+        const titles = items.map((it, i) => `${i}: ${it.title}`).join('\n');
+        const prompt = `Classify news headlines. Return ONLY a JSON array of index numbers for headlines that are positive, uplifting, joyful, heartwarming, or interesting good news. Exclude: politics, conflicts, crime, accidents, disasters, layoffs, warnings, or neutral/negative news. Only include clearly happy or good news.
+
+Headlines:
+${titles}
+
+Respond with only a JSON array like [0, 3, 7] — no explanation.`;
+
+        const raw = await geminiPost(apiKey, 'gemini-3-flash-preview', {
+            contents: [{parts: [{text: prompt}]}],
+            generationConfig: {temperature: 0.1, maxOutputTokens: 300},
+        });
+
+        let text = raw;
+        try {
+            const json = JSON.parse(raw);
+            text = json?.candidates?.[0]?.content?.parts?.[0]?.text || raw;
+        } catch (_) {
+        }
+
+        const match = text.match(/\[[\d,\s]*]/);
+        if (match) {
+            try {
+                const indices = JSON.parse(match[0]);
+                const selected = indices
+                    .filter(i => Number.isInteger(i) && i >= 0 && i < items.length)
+                    .map(i => items[i]);
+                if (selected.length > 0) return selected;
+            } catch (_) {
+            }
+        }
+
+        const looseMatches = [...text.matchAll(/\b\d+\b/g)].map(m => Number(m[0]));
+        const selected = [...new Set(looseMatches)]
+            .filter(i => Number.isInteger(i) && i >= 0 && i < items.length)
+            .map(i => items[i]);
+        if (selected.length > 0) return selected;
+
+        return pickFallbackGoodNews(items);
+    }
+
+    async function loadGoodNewsWidget() {
+        const el = document.createElement('div');
+        el.className = 'rss-feed good-news-feed';
+        overlayDiv.appendChild(el);
+
+        try {
+            // Serve from cache if still fresh
+            let goodItems = null;
+            try {
+                const cached = JSON.parse(localStorage.getItem(GOOD_NEWS_CACHE_KEY) || 'null');
+                if (cached && Date.now() - cached.timestamp < GOOD_NEWS_CACHE_TTL) {
+                    goodItems = cached.items;
+                    console.log('[goodnews] serving from cache');
+                }
+            } catch (_) {
+            }
+
+            if (!goodItems) {
+                const apiKey = getGeminiApiKey();
+                const allItems = await fetchAllNewsItems();
+                if (!apiKey) {
+                    console.warn('[goodnews] GEMINI_API_KEY puuttuu, käytetään heuristista varalistaa');
+                    goodItems = pickFallbackGoodNews(allItems);
+                } else {
+                    console.log('[goodnews] fetching and classifying…');
+                    goodItems = await classifyGoodNews(allItems, apiKey);
+                }
+                try {
+                    localStorage.setItem(GOOD_NEWS_CACHE_KEY, JSON.stringify({
+                        items: goodItems,
+                        timestamp: Date.now()
+                    }));
+                } catch (_) {
+                }
+                console.log(`[goodnews] cached ${goodItems.length} good items`);
+            }
+
+            const now = new Date().toLocaleTimeString('fi-FI', {hour: '2-digit', minute: '2-digit'});
+            const displayItems = goodItems.length ? goodItems.slice(0, 6) : [{
+                title: 'Hyviä uutisia ei löytynyt juuri nyt.',
+                source: '',
+                date: ''
+            }];
+            el.innerHTML = `
+          <div class="rss-header">
+            <span class="rss-feed-title">🌟 Hyviä Uutisia</span>
+            <span class="rss-clock">${esc(now)}</span>
+          </div>
+          <div class="rss-items">
+            ${displayItems.map(i => `<div class="rss-item">
+              <div class="rss-item-title">${esc(i.title)}</div>
+              ${i.source || i.date ? `<div class="rss-item-date">${[i.source, i.date].filter(Boolean).join(' · ')}</div>` : ''}
+            </div>`).join('')}
+          </div>`;
+        } catch (e) {
+            console.error('[goodnews]', e);
+            el.innerHTML = `<div style="padding:48px;font-size:1.4rem;color:#065f46">Hyviä uutisia ei saatavilla: ${esc(e.message)}</div>`;
+        }
     }
 
     // ── main loop ───────────────────────────────────────────────────────────
     async function run() {
-      let config = loadConfig();
-      nav.items = config.items.map(normalizeItem);
+        let config = loadConfig();
+        nav.items = config.items.map(normalizeItem);
 
-      if (nav.items.length === 0) {
-        document.body.innerHTML = '<p style="color:#555;font-family:sans-serif;margin:40px;font-size:1.2rem">No playlist — run <code>npm start</code> to launch in Electron.</p>';
-        return;
-      }
-
-      // Preload all URL/YouTube items in parallel immediately
-      nav.items.forEach(addToPool);
-
-      while (true) {
-        // Re-read config; add any new URLs that appeared
-        try { config = loadConfig(); nav.items = config.items.map(normalizeItem); nav.items.forEach(addToPool); } catch (_) {}
-
-        const item = nav.items[nav.idx];
-        showNavIndicator();
-
-        const type = mediaType(item.src);
-        try {
-          if (type === 'url' || type === 'youtube') {
-            showPoolItem(item);
-          } else {
-            await showWidget(item);
-          }
-        } catch (e) {
-          console.error('Error showing item:', item.src, e.message);
+        if (nav.items.length === 0) {
+            document.body.innerHTML = '<p style="color:#555;font-family:sans-serif;margin:40px;font-size:1.2rem">No playlist — run <code>npm start</code> to launch in Electron.</p>';
+            return;
         }
 
-        await sleepOrSkip(item.duration || config.interval || 10000);
+        // Preload all URL/YouTube items in parallel immediately
+        nav.items.forEach(addToPool);
 
-        if (nav.jumpTo !== null) { nav.idx = nav.jumpTo; nav.jumpTo = null; }
-        else { nav.idx = (nav.idx + 1) % nav.items.length; }
-      }
+        while (true) {
+            // Re-read config; add any new URLs that appeared
+            try {
+                config = loadConfig();
+                nav.items = config.items.map(normalizeItem);
+                nav.items.forEach(addToPool);
+            } catch (_) {
+            }
+
+            const item = nav.items[nav.idx];
+            showNavIndicator();
+
+            const type = mediaType(item.src);
+            try {
+                if (type === 'url' || type === 'youtube') {
+                    showPoolItem(item);
+                } else {
+                    await showWidget(item);
+                }
+            } catch (e) {
+                console.error('Error showing item:', item.src, e.message);
+            }
+
+            await sleepOrSkip(item.duration || config.interval || 10000);
+
+            if (nav.jumpTo !== null) {
+                nav.idx = nav.jumpTo;
+                nav.jumpTo = null;
+            } else {
+                nav.idx = (nav.idx + 1) % nav.items.length;
+            }
+        }
     }
 
     run().catch(console.error);
-  </script>
+</script>
 </body>
 </html>
