@@ -112,6 +112,7 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
       webSecurity: false,
+      sandbox: false,
       autoplayPolicy: 'no-user-gesture-required'
     }
   });
@@ -135,6 +136,7 @@ function createWindow() {
   });
 
   win.loadFile('index.html');
+  // win.webContents.openDevTools();
 
   if (SHOULD_OPEN_DEVTOOLS) {
     win.webContents.once('did-finish-load', () => {
