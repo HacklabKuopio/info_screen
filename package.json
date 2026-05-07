@@ -4,7 +4,7 @@
   "description": "Digital signage player for info screens",
   "main": "main.js",
   "scripts": {
-    "start": "electron . --password-store=basic"
+    "start": "electron . --password-store=basic --no-sandbox --ozone-platform-hint=auto"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
