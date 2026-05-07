@@ -98,12 +98,8 @@ function registerWebviewGuards() {
 }
 
 function createWindow() {
-  const { bounds } = screen.getPrimaryDisplay();
   const win = new BrowserWindow({
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
+    show: false,
     fullscreen: true,
     kiosk: true,
     autoHideMenuBar: true,
@@ -121,24 +117,20 @@ function createWindow() {
   win.setMenuBarVisibility(false);
   win.webContents.on('before-input-event', (event, input) => {
     const isDevToolsShortcut =
-      input.key === 'F12' ||
-      (input.control && input.shift && input.key.toLowerCase() === 'i');
+        input.key === 'F12' ||
+        (input.control && input.shift && input.key.toLowerCase() === 'i');
 
     if (isDevToolsShortcut) {
       event.preventDefault();
       win.webContents.toggleDevTools();
     }
   });
+
   win.once('ready-to-show', () => {
-    // Re-apply fullscreen mode after renderer is ready to avoid startup race conditions.
-    setTimeout(() => {
-      win.setFullScreen(true);
-      win.setKiosk(true);
-    }, 250);
+    win.show();
   });
 
   win.loadFile('index.html');
-  // win.webContents.openDevTools();
 
   if (SHOULD_OPEN_DEVTOOLS) {
     win.webContents.once('did-finish-load', () => {
