@@ -1,12 +1,13 @@
 {
-  "name": "electron-signage",
+  "name": "halko-info-screen",
   "version": "1.0.0",
-  "description": "Digital signage player for infoscreens",
+  "description": "Digital signage player for info screens",
   "main": "main.js",
   "scripts": {
     "start": "electron ."
   },
   "devDependencies": {
-    "electron": "^35.0.0"
+    "@types/node": "^25.6.0",
+    "electron": "^42.0.0"
   }
 }

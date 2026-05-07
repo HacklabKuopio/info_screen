@@ -6,7 +6,9 @@ const path = require('path');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 const SIGNAGE_PARTITION = 'persist:signage';
-const SHOULD_OPEN_DEVTOOLS = process.env.OPEN_DEVTOOLS !== 'false';
+// Defaults to false so DevTools do not auto-open on production hardware.
+// Set OPEN_DEVTOOLS=true in .env.local for local development.
+const SHOULD_OPEN_DEVTOOLS = process.env.OPEN_DEVTOOLS === 'true';
 
 function loadEnvFile(filePath, loadedKeys, initialEnvKeys) {
   if (!fs.existsSync(filePath)) return;

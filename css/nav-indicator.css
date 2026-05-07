@@ -1,0 +1,19 @@
+#nav-indicator {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    font: 600 13px/1 -apple-system, sans-serif;
+    padding: 8px 20px;
+    border-radius: 20px;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+}
+
+#nav-indicator.visible {
+    opacity: 1;
+}

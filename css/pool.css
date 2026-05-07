@@ -1,0 +1,30 @@
+/* Pool webviews: all live in the DOM, only one visible at a time */
+#pool webview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: inline-flex;
+    border: none;
+    visibility: hidden;
+    z-index: 1;
+}
+
+#pool webview.active {
+    visibility: visible;
+    z-index: 2;
+}
+
+/* Overlay: RSS / aurora / events widgets */
+#overlay {
+    position: fixed;
+    inset: 0;
+    visibility: hidden;
+    z-index: 2;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+}
+
+#overlay.active {
+    visibility: visible;
+}

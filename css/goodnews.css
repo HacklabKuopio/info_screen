@@ -1,0 +1,33 @@
+/* Good news overrides — must be loaded after rss.css */
+.good-news-feed {
+    background: linear-gradient(160deg, #fffbeb 0%, #fef3c7 40%, #ecfdf5 100%);
+    color: #1a3a2a;
+}
+
+.good-news-feed .rss-header {
+    border-bottom-color: #a7f3d0;
+}
+
+.good-news-feed .rss-feed-title {
+    color: #065f46;
+}
+
+.good-news-feed .rss-clock {
+    color: #6b7280;
+}
+
+.good-news-feed .rss-item {
+    border-bottom-color: #d1fae5;
+}
+
+.good-news-feed .rss-item-title {
+    color: #064e3b;
+}
+
+.good-news-feed .rss-item-desc {
+    color: #374151;
+}
+
+.good-news-feed .rss-item-date {
+    color: #6b7280;
+}

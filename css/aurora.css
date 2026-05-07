@@ -1,0 +1,129 @@
+.aurora-widget {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at 50% 0%, #0e1d45 0%, #050810 65%);
+    color: #b8d0e8;
+    font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    padding: 64px 88px;
+    overflow: hidden;
+}
+
+.aurora-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid #1a2a45;
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+}
+
+.aurora-title {
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: #ddeeff;
+}
+
+.aurora-time {
+    font-size: 2rem;
+    color: #4a6080;
+    font-variant-numeric: tabular-nums;
+}
+
+.aurora-body {
+    display: flex;
+    gap: 80px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.aurora-left {
+    display: flex;
+    flex-direction: column;
+    width: 420px;
+    flex-shrink: 0;
+}
+
+.aurora-kp-num {
+    font-size: 9rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -4px;
+}
+
+.aurora-kp-sub {
+    font-size: 1.2rem;
+    color: #4a6080;
+    margin-bottom: 8px;
+}
+
+.aurora-storm {
+    font-size: 1.7rem;
+    font-weight: 600;
+    margin-bottom: 32px;
+}
+
+.aurora-gauge-track {
+    height: 14px;
+    background: #080f20;
+    border-radius: 7px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    border: 1px solid #131e35;
+}
+
+.aurora-gauge-fill {
+    height: 100%;
+    border-radius: 7px;
+}
+
+.aurora-gauge-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1rem;
+    color: #3a5070;
+    margin-bottom: 32px;
+}
+
+.aurora-history-label {
+    font-size: 1rem;
+    color: #3a5070;
+    margin-bottom: 10px;
+}
+
+.aurora-bars {
+    display: flex;
+    height: 90px;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.aurora-right {
+    flex: 1;
+}
+
+.aurora-vis-title {
+    font-size: 1.2rem;
+    color: #4a6080;
+    margin-bottom: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.aurora-city {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid #0c1525;
+    font-size: 1.6rem;
+}
+
+.aurora-city:last-child {
+    border-bottom: none;
+}
+
+.aurora-city-name {
+    color: #7a9ab8;
+}
