@@ -98,7 +98,13 @@ function registerWebviewGuards() {
 }
 
 function createWindow() {
+  const displays = screen.getAllDisplays();
+  const targetDisplay = displays[1] || displays[0];
+  const { bounds } = targetDisplay;
+
   const win = new BrowserWindow({
+    x: bounds.x,
+    y: bounds.y,
     show: false,
     fullscreen: true,
     kiosk: true,
